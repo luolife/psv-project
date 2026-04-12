@@ -1,11 +1,11 @@
 // frontend/src/tasks/contrast.js
 //
-// Contrast Sensitivity Task
+// Equivalente exato de: visual.GratingStim(tex="sin", mask="gauss", sf=0.05, opacity=contrast, size=100)
 //
-// Estímulo: grating senoidal retangular, sem máscara
-// Contraste controla a luminância do padrão (quanto se destaca do fundo preto)
-// Níveis: [0.05, 0.08, 0.16, 0.32, 0.64]
-// ← = detectou | → = não detectou nada
+// - size=100px fixo
+// - sf=0.05 cycles/pixel fixo
+// - mask="gauss" fixa — define a forma circular com bordas suaves
+// - opacity=contrast — APENAS a opacidade muda entre trials
 
 import {
   balancedSequence, pseudorandomizeMaxRun,
@@ -17,19 +17,15 @@ import {
 const PRACTICE_TRIALS  = 10;
 const MAIN_TRIALS      = 80;
 const CONTRAST_LEVELS  = [0.05, 0.08, 0.16, 0.32, 0.64];
-const SF               = 0.05;   // cycles/pixel
 const STIM_DURATION_MS = 800;
 const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// ~5% da largura x ~8% da altura da tela
-function calcStimSize() {
-  return {
-    w: Math.round(window.innerWidth  * 0.05),
-    h: Math.round(window.innerHeight * 0.08),
-  };
-}
+// Parâmetros fixos do GratingStim — não mudam entre trials
+// size=100px foi definido para 1920×1080. Escala proporcionalmente à tela atual.
+const STIM_SIZE = Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
+const SF        = 0.05;  // cycles/pixel — sf=0.05 do PsychoPy
 
 // Randomização balanceada: 40 sem estímulo + 8 por nível = 80 total
 function buildBalancedLabels() {
@@ -43,54 +39,71 @@ function buildBalancedLabels() {
 const LABELS = buildBalancedLabels();
 
 // ---------------------------------------------------------------------------
-// Grating senoidal com gaussiana suave nas bordas
-//
-// A gaussiana é FIXA — só suaviza as bordas visualmente
-// O que varia entre trials é APENAS o contraste (luminância)
-//
-// pixel = contrast × gauss_borda × (0.5 + 0.5 × sin) × 255
-//
-// - Contraste 0.05 → pico ~13/255 → quase invisível
-// - Contraste 0.64 → pico ~163/255 → bem visível
-// - gauss_borda = 1 no centro, decai suavemente só nas bordas
+// Pré-computa a máscara gaussiana UMA VEZ — é fixa para todos os trials
+// Equivalente ao mask="gauss" do PsychoPy
 // ---------------------------------------------------------------------------
-function createGratingCanvas(contrast) {
-  const stim   = calcStimSize();
-  // Canvas um pouco maior para a borda suave ter espaço
-  const pad    = Math.round(Math.min(stim.w, stim.h) * 0.5);
-  const w      = stim.w + pad * 2;
-  const h      = stim.h + pad * 2;
-
-  const canvas  = document.createElement("canvas");
-  canvas.width  = w;
-  canvas.height = h;
-
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, w, h);
-
-  const imageData = ctx.createImageData(w, h);
-  const data      = imageData.data;
-  const cx        = w / 2;
-  const cy        = h / 2;
-  // Gaussiana só no eixo X → bordas laterais suaves, bordas verticais retas
-  const sigmaX = stim.w / 1.5;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx    = x - cx;
-      // Gaussiana horizontal: plana no centro, decai nas laterais
-      const gaussX = Math.exp(-(dx * dx) / (2 * sigmaX * sigmaX));
-      // Usa valor absoluto do sine → todas as tiras igual luminância
-      const sine  = Math.abs(Math.sin(2 * Math.PI * SF * x));
-      const val   = Math.round(contrast * gaussX * sine * 255);
-      const idx   = (y * w + x) * 4;
-      data[idx]     = val;
-      data[idx + 1] = val;
-      data[idx + 2] = val;
-      data[idx + 3] = 255;
+const GAUSS_MASK = (() => {
+  const size  = STIM_SIZE;
+  const cx    = size / 2;
+  const cy    = size / 2;
+  const sigma = size / 6;  // sigma padrão do PsychoPy mask="gauss"
+  const mask  = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      mask[y * size + x] = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
     }
   }
+  return mask;
+})();
+
+// Pré-computa o grating senoidal UMA VEZ — é fixo para todos os trials
+// Equivalente ao tex="sin", sf=0.05 do PsychoPy
+const SINE_GRATING = (() => {
+  const size = STIM_SIZE;
+  const g    = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // PsychoPy GratingStim: valores de -1 a +1
+      g[y * size + x] = Math.sin(2 * Math.PI * SF * x);
+    }
+  }
+  return g;
+})();
+
+// ---------------------------------------------------------------------------
+// Cria canvas com opacity=contrast — igual ao PsychoPy
+// Grating e máscara são fixos; só opacity (contrast) varia
+// ---------------------------------------------------------------------------
+function createGratingCanvas(contrast) {
+  const size   = STIM_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width  = size;
+  canvas.height = size;
+
+  const ctx       = canvas.getContext("2d");
+  const imageData = ctx.createImageData(size, size);
+  const data      = imageData.data;
+
+  for (let i = 0; i < size * size; i++) {
+    const sine  = SINE_GRATING[i];   // -1 a +1
+    const gauss = GAUSS_MASK[i];     // 0 a 1
+
+    // PsychoPy: pixel = (sine * contrast * gauss + 1) / 2 × 255
+    // → fundo médio cinza (127) quando gauss=0 e sine=0
+    // → mas com fundo preto (opacity sobre preto), resultado é:
+    // pixel_rgb = (sine + 1) / 2 × 255   (grating completo)
+    // pixel_alpha = gauss × contrast × 255  (opacidade controlada por contrast e gauss)
+    const rgb   = Math.round((sine + 1) / 2 * 255);
+    const alpha = Math.round(gauss * contrast * 255);
+
+    data[i * 4]     = rgb;
+    data[i * 4 + 1] = rgb;
+    data[i * 4 + 2] = rgb;
+    data[i * 4 + 3] = alpha;
+  }
+
   ctx.putImageData(imageData, 0, 0);
 
   canvas.style.cssText = `
