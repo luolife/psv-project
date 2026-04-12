@@ -2,12 +2,10 @@
 //
 // Contrast Sensitivity Task
 //
-// Paradigma:
-//   Estímulo: grating senoidal com envelope gaussiano (GratingStim)
-//   Contrastes: [0.05, 0.08, 0.16, 0.32, 0.64] + trials sem estímulo
-//   ← = detectou estímulo | → = não detectou nada
-//   Prática: 10 trials com feedback | Principal: 80 trials sem feedback
-//   Pausa automática a cada 40 trials
+// Estímulo: grating senoidal retangular, sem máscara
+// Contraste controla a luminância do padrão (quanto se destaca do fundo preto)
+// Níveis: [0.05, 0.08, 0.16, 0.32, 0.64]
+// ← = detectou | → = não detectou nada
 
 import {
   balancedSequence, pseudorandomizeMaxRun,
@@ -16,9 +14,6 @@ import {
   waitForResponse, showTouchHint, hideTouchHint, calcMetrics, delay,
 } from "./_engine.js";
 
-// ---------------------------------------------------------------------------
-// Parâmetros
-// ---------------------------------------------------------------------------
 const PRACTICE_TRIALS  = 10;
 const MAIN_TRIALS      = 80;
 const CONTRAST_LEVELS  = [0.05, 0.08, 0.16, 0.32, 0.64];
@@ -28,7 +23,7 @@ const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// Tamanho do estímulo: ~5% da largura x ~8% da altura da tela
+// ~5% da largura x ~8% da altura da tela
 function calcStimSize() {
   return {
     w: Math.round(window.innerWidth  * 0.05),
@@ -36,8 +31,7 @@ function calcStimSize() {
   };
 }
 
-// Randomização balanceada:
-// 40 sem estímulo + 8 por nível de contraste (5×8=40) = 80 total
+// Randomização balanceada: 40 sem estímulo + 8 por nível = 80 total
 function buildBalancedLabels() {
   const labels = [];
   for (const c of CONTRAST_LEVELS) {
@@ -49,29 +43,29 @@ function buildBalancedLabels() {
 const LABELS = buildBalancedLabels();
 
 // ---------------------------------------------------------------------------
-// Grating senoidal com envelope gaussiano
+// Grating senoidal com gaussiana suave nas bordas
 //
-// Fórmula: pixel = contrast × gauss × (0.5 + 0.5 × sin) × 255
+// A gaussiana é FIXA — só suaviza as bordas visualmente
+// O que varia entre trials é APENAS o contraste (luminância)
 //
-// - Fundo sempre PRETO (0)
-// - No centro (gauss=1, sin=1): pixel = contrast × 255  → branco escalado
-// - No centro (gauss=1, sin=-1): pixel = 0              → preto
-// - Nas bordas (gauss→0): pixel → 0                     → preto, funde com fundo
-// - Contraste baixo (0.05): pico de ~13/255             → quase invisível
-// - Contraste alto (0.64): pico de ~163/255             → bem visível
+// pixel = contrast × gauss_borda × (0.5 + 0.5 × sin) × 255
+//
+// - Contraste 0.05 → pico ~13/255 → quase invisível
+// - Contraste 0.64 → pico ~163/255 → bem visível
+// - gauss_borda = 1 no centro, decai suavemente só nas bordas
 // ---------------------------------------------------------------------------
 function createGratingCanvas(contrast) {
-  const stim = calcStimSize();
-  // Canvas 3× para o envelope decair completamente antes das bordas
-  const w    = stim.w * 3;
-  const h    = stim.h * 3;
+  const stim   = calcStimSize();
+  // Canvas um pouco maior para a borda suave ter espaço
+  const pad    = Math.round(Math.min(stim.w, stim.h) * 0.5);
+  const w      = stim.w + pad * 2;
+  const h      = stim.h + pad * 2;
 
   const canvas  = document.createElement("canvas");
   canvas.width  = w;
   canvas.height = h;
 
   const ctx = canvas.getContext("2d");
-  // Fundo preto explícito
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
 
@@ -79,17 +73,18 @@ function createGratingCanvas(contrast) {
   const data      = imageData.data;
   const cx        = w / 2;
   const cy        = h / 2;
-  // Sigma apertado para o preto "engolir" as bordas rapidamente
-  const sigma     = Math.min(stim.w, stim.h) / 2;
+  // Sigma grande — gaussiana plana no centro, decai só nas bordas
+  const sigmaX    = stim.w / 1.5;
+  const sigmaY    = stim.h / 1.5;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const dx    = x - cx;
       const dy    = y - cy;
-      const gauss = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
-      const sine  = Math.sin(2 * Math.PI * SF * dx);
-      // Pixel varia de 0 (preto) a contrast×255 (branco)
-      // Fundo sempre preto — sem cinza de base
+      // Gaussiana elíptica: plana no centro, suaviza só as bordas
+      const gauss = Math.exp(-(dx * dx) / (2 * sigmaX * sigmaX)
+                             -(dy * dy) / (2 * sigmaY * sigmaY));
+      const sine  = Math.sin(2 * Math.PI * SF * x);
       const val   = Math.round(contrast * gauss * (0.5 + 0.5 * sine) * 255);
       const idx   = (y * w + x) * 4;
       data[idx]     = val;
@@ -120,9 +115,7 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   container.style.position = "relative";
   showProgressBar(container, trialIdx, total);
 
-  if (hasStim) {
-    container.appendChild(createGratingCanvas(contrast));
-  }
+  if (hasStim) container.appendChild(createGratingCanvas(contrast));
   await delay(STIM_DURATION_MS);
 
   clearContainer(container);
