@@ -73,19 +73,17 @@ function createGratingCanvas(contrast) {
   const data      = imageData.data;
   const cx        = w / 2;
   const cy        = h / 2;
-  // Sigma grande — gaussiana plana no centro, decai só nas bordas
-  const sigmaX    = stim.w / 1.5;
-  const sigmaY    = stim.h / 1.5;
+  // Gaussiana só no eixo X → bordas laterais suaves, bordas verticais retas
+  const sigmaX = stim.w / 1.5;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const dx    = x - cx;
-      const dy    = y - cy;
-      // Gaussiana elíptica: plana no centro, suaviza só as bordas
-      const gauss = Math.exp(-(dx * dx) / (2 * sigmaX * sigmaX)
-                             -(dy * dy) / (2 * sigmaY * sigmaY));
-      const sine  = Math.sin(2 * Math.PI * SF * x);
-      const val   = Math.round(contrast * gauss * (0.5 + 0.5 * sine) * 255);
+      // Gaussiana horizontal: plana no centro, decai nas laterais
+      const gaussX = Math.exp(-(dx * dx) / (2 * sigmaX * sigmaX));
+      // Usa valor absoluto do sine → todas as tiras igual luminância
+      const sine  = Math.abs(Math.sin(2 * Math.PI * SF * x));
+      const val   = Math.round(contrast * gaussX * sine * 255);
       const idx   = (y * w + x) * 4;
       data[idx]     = val;
       data[idx + 1] = val;
