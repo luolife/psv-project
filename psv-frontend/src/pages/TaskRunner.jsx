@@ -38,17 +38,36 @@ export default function TaskRunner() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
-  const [phase, setPhase]           = useState("select");
-  const [selected, setSelected]     = useState(["contrast","motion","gabor"]);
+  const [phase, setPhase]             = useState("select");
+  const [selected, setSelected]       = useState(["contrast","motion","gabor"]);
   const [currentTask, setCurrentTask] = useState(0);
-  const [queue, setQueue]           = useState([]);
-  const [completed, setCompleted]   = useState([]);
-  const [errorMsg, setErrorMsg]     = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [queue, setQueue]             = useState([]);
+  const [doneThisRound, setDoneThisRound] = useState([]);
+  const [errorMsg, setErrorMsg]       = useState("");
+  const [submitting, setSubmitting]   = useState(false);
+  // Tasks já feitas em rodadas anteriores (carregadas do banco)
+  const [alreadyDone, setAlreadyDone] = useState([]);
+  const [loadingDone, setLoadingDone] = useState(true);
   const taskContainerRef = useRef(null);
   const hardwareMetaRef  = useRef(null);
 
+  // Carrega quais tasks já foram feitas nesta sessão
+  useEffect(() => {
+    sessionsApi.summary(sessionId)
+      .then((s) => {
+        const done = s.tasks.map((t) => t.task_name);
+        setAlreadyDone(done);
+        // Pré-seleciona apenas as que faltam
+        const remaining = ALL_TASKS.filter((t) => !done.includes(t.key)).map((t) => t.key);
+        setSelected(remaining.length > 0 ? remaining : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDone(false));
+  }, [sessionId]);
+
   const toggleTask = (key) => {
+    // Não permite desmarcar tasks já feitas
+    if (alreadyDone.includes(key)) return;
     setSelected((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
@@ -58,12 +77,15 @@ export default function TaskRunner() {
     const q = ALL_TASKS.filter((t) => selected.includes(t.key));
     if (q.length === 0) return;
     setQueue(q);
+    setDoneThisRound([]);
     setPhase("running");
   };
 
   const runTasksWhenReady = async () => {
     try {
       hardwareMetaRef.current = await captureHardwareMeta();
+      const nowDone = [...alreadyDone];
+
       for (let i = 0; i < queue.length; i++) {
         setCurrentTask(i);
         const task = queue[i];
@@ -80,9 +102,17 @@ export default function TaskRunner() {
           hardware_metadata: hardwareMetaRef.current,
         });
         setSubmitting(false);
-        setCompleted((prev) => [...prev, task.key]);
+        nowDone.push(task.key);
+        setDoneThisRound((prev) => [...prev, task.key]);
       }
-      await sessionsApi.complete(sessionId);
+
+      // Só marca sessão como concluída se as 3 tasks foram feitas
+      const allThreeDone = ALL_TASKS.every((t) => nowDone.includes(t.key));
+      if (allThreeDone) {
+        await sessionsApi.complete(sessionId);
+      }
+
+      setAlreadyDone(nowDone);
       setPhase("done");
     } catch (err) {
       setErrorMsg(err.message || "Erro durante a execução das tarefas");
@@ -96,25 +126,35 @@ export default function TaskRunner() {
     }
   }, [phase, taskContainerRef.current, queue]);
 
+  const allThreeDone = ALL_TASKS.every((t) => alreadyDone.includes(t.key));
+  const remaining    = ALL_TASKS.filter((t) => !alreadyDone.includes(t.key));
+
   // ---- SELEÇÃO ----
   if (phase === "select") {
+    if (loadingDone) return (
+      <div className="page"><Navbar />
+        <main className="container mt-4" style={{ maxWidth: 600 }}>
+          <p className="text-muted text-small text-center">Carregando sessão...</p>
+        </main>
+      </div>
+    );
+
     return (
       <div className="page">
         <Navbar />
         <main className="container mt-4" style={{ maxWidth: 600 }}>
-
           <div className="stepper">
             {[
               { n: "✓", label: "Cadastro",   cls: "stepper__dot--done"   },
               { n: "✓", label: "Check-list", cls: "stepper__dot--done"   },
-              { n: 3,   label: "Tarefas",    cls: "stepper__dot--active" },
-              { n: 4,   label: "Resultados", cls: "stepper__dot--pending"},
+              { n: allThreeDone ? "✓" : 3, label: "Tarefas", cls: allThreeDone ? "stepper__dot--done" : "stepper__dot--active" },
+              { n: 4,   label: "Resultados", cls: allThreeDone ? "stepper__dot--active" : "stepper__dot--pending"},
             ].map((s, i, arr) => (
               <div key={i} className="stepper__step">
                 <div className={`stepper__dot ${s.cls}`}>{s.n}</div>
                 <span className="stepper__label">{s.label}</span>
                 {i < arr.length - 1 && (
-                  <div className={`stepper__line ${i < 2 ? "stepper__line--done" : ""}`} />
+                  <div className={`stepper__line ${i < 2 || (i === 2 && allThreeDone) ? "stepper__line--done" : ""}`} />
                 )}
               </div>
             ))}
@@ -123,12 +163,18 @@ export default function TaskRunner() {
           <div className="card">
             <h2 className="mb-1">Tarefas computadorizadas</h2>
             <p className="text-muted text-small mb-3">
-              Selecione quais tarefas aplicar nesta sessão.
+              {allThreeDone
+                ? "Todas as tarefas foram concluídas nesta sessão."
+                : remaining.length < 3
+                  ? `${remaining.length} tarefa(s) pendente(s). Selecione quais aplicar agora.`
+                  : "Selecione quais tarefas aplicar nesta sessão."
+              }
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
               {ALL_TASKS.map((t, i) => {
-                const on = selected.includes(t.key);
+                const done = alreadyDone.includes(t.key);
+                const on   = selected.includes(t.key) || done;
                 return (
                   <div
                     key={t.key}
@@ -136,56 +182,64 @@ export default function TaskRunner() {
                     style={{
                       display: "flex", alignItems: "center", gap: "0.875rem",
                       padding: "0.875rem 1rem",
-                      border: `1.5px solid ${on ? "var(--c-blue-500)" : "var(--c-border)"}`,
+                      border: `1.5px solid ${done ? "var(--c-teal-500)" : on ? "var(--c-blue-500)" : "var(--c-border)"}`,
                       borderRadius: "var(--radius-md)",
-                      background: on ? "var(--c-blue-50)" : "transparent",
-                      cursor: "pointer", transition: "all 0.15s",
+                      background: done ? "var(--c-teal-50)" : on ? "var(--c-blue-50)" : "transparent",
+                      cursor: done ? "default" : "pointer",
+                      opacity: done ? 0.8 : 1,
+                      transition: "all 0.15s",
                     }}
                   >
-                    {/* Checkbox visual */}
                     <div style={{
                       width: 20, height: 20, borderRadius: 4, flexShrink: 0,
-                      border: `2px solid ${on ? "var(--c-blue-500)" : "var(--c-border-md)"}`,
-                      background: on ? "var(--c-blue-500)" : "transparent",
+                      border: `2px solid ${done ? "var(--c-teal-500)" : on ? "var(--c-blue-500)" : "var(--c-border-md)"}`,
+                      background: done ? "var(--c-teal-500)" : on ? "var(--c-blue-500)" : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
                       {on && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
                     </div>
-
-                    {/* Número */}
                     <div style={{
                       width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                      background: on ? "var(--c-blue-500)" : "var(--c-blue-100)",
+                      background: done ? "var(--c-teal-500)" : on ? "var(--c-blue-500)" : "var(--c-blue-100)",
                       color: on ? "#fff" : "var(--c-blue-700)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: "0.8rem", fontWeight: 600,
                     }}>{i + 1}</div>
-
-                    <span style={{ fontSize: "0.9rem", fontWeight: on ? 500 : 400 }}>{t.label}</span>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: "0.9rem", fontWeight: on ? 500 : 400 }}>{t.label}</span>
+                      {done && <span className="text-small text-muted" style={{ marginLeft: "0.5rem" }}>— concluída</span>}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            {selected.length === 0 && (
-              <p className="form-error mb-2">Selecione ao menos uma tarefa.</p>
+            {allThreeDone ? (
+              <button className="btn btn--primary btn--full btn--lg"
+                onClick={() => navigate(`/sessions/${sessionId}/results`)}>
+                Ver resultados →
+              </button>
+            ) : (
+              <>
+                {selected.length === 0 && (
+                  <p className="form-error mb-2">Selecione ao menos uma tarefa.</p>
+                )}
+                <div style={{
+                  padding: "0.75rem 1rem", background: "var(--c-amber-100)",
+                  borderRadius: "var(--radius-md)", marginBottom: "1.5rem",
+                  fontSize: "0.85rem", color: "var(--c-amber-500)",
+                }}>
+                  <strong>Atenção:</strong> não feche esta aba durante as tarefas.
+                </div>
+                <button
+                  className="btn btn--primary btn--full btn--lg"
+                  onClick={startTasks}
+                  disabled={selected.length === 0}
+                >
+                  Iniciar {selected.length} tarefa{selected.length !== 1 ? "s" : ""}
+                </button>
+              </>
             )}
-
-            <div style={{
-              padding: "0.75rem 1rem", background: "var(--c-amber-100)",
-              borderRadius: "var(--radius-md)", marginBottom: "1.5rem",
-              fontSize: "0.85rem", color: "var(--c-amber-500)",
-            }}>
-              <strong>Atenção:</strong> não feche esta aba durante as tarefas.
-            </div>
-
-            <button
-              className="btn btn--primary btn--full btn--lg"
-              onClick={startTasks}
-              disabled={selected.length === 0}
-            >
-              Iniciar {selected.length === ALL_TASKS.length ? "todas as" : selected.length} tarefa{selected.length !== 1 ? "s" : ""}
-            </button>
           </div>
         </main>
       </div>
@@ -213,7 +267,7 @@ export default function TaskRunner() {
           <div style={{ flex: 1, height: 3, background: "#333", borderRadius: 999, overflow: "hidden" }}>
             <div style={{
               height: "100%",
-              width: `${(completed.length / queue.length) * 100}%`,
+              width: `${(doneThisRound.length / queue.length) * 100}%`,
               background: "#2563A8", transition: "width 0.4s ease",
             }} />
           </div>
@@ -229,20 +283,39 @@ export default function TaskRunner() {
 
   // ---- DONE ----
   if (phase === "done") {
+    const allNowDone = ALL_TASKS.every((t) => alreadyDone.includes(t.key));
     return (
       <div className="page">
         <Navbar />
         <main className="container mt-4" style={{ maxWidth: 480, textAlign: "center" }}>
           <div className="card">
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✓</div>
-            <h2 className="mb-1">Tarefas concluídas!</h2>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>
+              {allNowDone ? "✓" : "⏳"}
+            </div>
+            <h2 className="mb-1">
+              {allNowDone ? "Avaliação concluída!" : "Tarefas parcialmente concluídas"}
+            </h2>
             <p className="text-muted text-small mb-3">
-              Dados salvos com sucesso.
+              {allNowDone
+                ? "Todas as tarefas foram realizadas. Os dados foram salvos."
+                : `${ALL_TASKS.filter(t => !alreadyDone.includes(t.key)).length} tarefa(s) ainda pendente(s). Você pode aplicá-las agora ou em outro momento.`
+              }
             </p>
-            <button className="btn btn--primary btn--full btn--lg"
-              onClick={() => navigate(`/sessions/${sessionId}/results`)}>
-              Ver resultados →
-            </button>
+            <div className="flex gap-1">
+              {!allNowDone && (
+                <button className="btn btn--outline" style={{ flex: 1 }}
+                  onClick={() => { setPhase("select"); setQueue([]); }}>
+                  Aplicar restantes
+                </button>
+              )}
+              <button
+                className={`btn btn--primary ${allNowDone ? "btn--full" : ""}`}
+                style={{ flex: 1 }}
+                onClick={() => navigate(`/sessions/${sessionId}/results`)}
+              >
+                {allNowDone ? "Ver resultados →" : "Ver parcial →"}
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -260,7 +333,7 @@ export default function TaskRunner() {
           <div className="flex gap-1">
             <button className="btn btn--ghost" onClick={() => navigate("/")}>Voltar ao início</button>
             <button className="btn btn--primary" onClick={() => {
-              setPhase("select"); setCompleted([]); setCurrentTask(0); setQueue([]);
+              setPhase("select"); setDoneThisRound([]); setCurrentTask(0); setQueue([]);
             }}>Tentar novamente</button>
           </div>
         </div>

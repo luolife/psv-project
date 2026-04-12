@@ -28,10 +28,9 @@ const PAUSE_INTERVAL   = 40;
 
 // DotStim params — espelho do Python
 const N_DOTS       = 300;
-const DOT_SIZE     = 4;      // pixels
-const DOT_SPEED    = 5;      // pixels por frame
+const DOT_SIZE     = 2;      // pixels — menor para telas de alta resolução
+const DOT_SPEED    = 6;      // pixels por frame (+20% sobre original)
 const DOT_LIFE     = 60;     // frames
-const FIELD_SIZE   = 350;    // pixels (field_size=(350,350))
 const COHERENCE    = 0.4;    // 40% dos dots coerentes
 
 const LABELS = ["esquerda", "direita"];
@@ -53,6 +52,8 @@ class DotStim {
     this.ctx     = canvas.getContext("2d");
     this.dir     = direction;   // "esquerda" | "direita"
     this.dirDeg  = direction === "esquerda" ? 180 : 0;
+    const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
+    this.fieldSize = FIELD_SIZE;
     this.radius  = FIELD_SIZE / 2;
     this.dots    = [];
     this.frame   = 0;
@@ -113,6 +114,7 @@ class DotStim {
 
   drawFrame() {
     const { canvas, ctx, radius } = this;
+    const dpr = window.devicePixelRatio || 1;
     const cx = canvas.width  / 2;
     const cy = canvas.height / 2;
 
@@ -126,15 +128,18 @@ class DotStim {
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // Desenha e move pontos
+    // Desenha pontos como círculos suaves
     ctx.fillStyle = "#fff";
+    const dotR = Math.max(1, DOT_SIZE * dpr / 2);
     for (const dot of this.dots) {
       this._moveDot(dot);
-      ctx.fillRect(
-        Math.round(cx + dot.x - DOT_SIZE / 2),
-        Math.round(cy + dot.y - DOT_SIZE / 2),
-        DOT_SIZE, DOT_SIZE
+      ctx.beginPath();
+      ctx.arc(
+        cx + dot.x,
+        cy + dot.y,
+        dotR, 0, Math.PI * 2
       );
+      ctx.fill();
     }
     ctx.restore();
     this.frame++;
@@ -150,13 +155,21 @@ function presentDots(container, direction, durationMs) {
     container.style.position = "relative";
 
     const canvas = document.createElement("canvas");
-    const size   = FIELD_SIZE + 40; // margem
-    canvas.width  = size;
-    canvas.height = size;
-    canvas.style.cssText = `
+    const dpr    = window.devicePixelRatio || 1;
+    const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
+    const size   = FIELD_SIZE + 40;
+    // Escala o canvas pelos pixels físicos da tela (resolve pixelação)
+    canvas.width  = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width  = size + "px";
+    canvas.style.height = size + "px";
+    canvas.style.cssText += `
       position: absolute; left: 50%; top: 50%;
       transform: translate(-50%, -50%);
     `;
+    // Escala o contexto para compensar o DPR
+    const ctxScale = canvas.getContext("2d");
+    ctxScale.scale(dpr, dpr);
     container.appendChild(canvas);
 
     const stim  = new DotStim(canvas, direction);

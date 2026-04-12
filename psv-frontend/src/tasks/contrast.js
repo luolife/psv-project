@@ -27,20 +27,38 @@ const STIM_DURATION_MS = 800;
 const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
-const STIM_SIZE_PX     = 200;   // tamanho visual do grating na tela
+
+// Tamanho do estímulo: ~4° de ângulo visual
+// Calculado como proporção do menor lado da tela para ser consistente
+// em desktop e mobile (a distância de visualização tende a ser
+// proporcional ao tamanho da tela)
+function calcStimSize() {
+  const vmin = Math.min(window.innerWidth, window.innerHeight);
+  return Math.round(vmin * 0.12); // ~4° de ângulo visual
+}
 const SF               = 0.05;  // cycles/pixel — espelho do PsychoPy sf=0.05
 
-const LABELS = [
-  ...CONTRAST_LEVELS.map((c) => `contraste_${c}`),
-  "nenhum_estimulo",
-];
+// Randomização balanceada:
+// 40 trials sem estímulo + 8 trials por nível de contraste (5×8=40) = 80 total
+// Isso garante proporção igual entre presença/ausência e entre níveis
+function buildBalancedLabels() {
+  const labels = [];
+  // 8 de cada contraste
+  for (const c of CONTRAST_LEVELS) {
+    for (let i = 0; i < 8; i++) labels.push(`contraste_${c}`);
+  }
+  // 40 sem estímulo
+  for (let i = 0; i < 40; i++) labels.push("nenhum_estimulo");
+  return labels;
+}
+const LABELS = buildBalancedLabels();
 
 // ---------------------------------------------------------------------------
 // Grating senoidal + envelope gaussiano via Canvas 2D
 // Equivalente: visual.GratingStim(tex="sin", mask="gauss", sf=0.05, size=100)
 // ---------------------------------------------------------------------------
 function createGratingCanvas(contrast) {
-  const size   = STIM_SIZE_PX;
+  const size   = calcStimSize();
   const canvas = document.createElement("canvas");
   canvas.width  = size;
   canvas.height = size;
@@ -171,8 +189,12 @@ export async function runContrastTask(container) {
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);
 
-  const seqPractice = pseudorandomizeMaxRun(balancedSequence(PRACTICE_TRIALS, LABELS), 3);
-  const seqMain     = pseudorandomizeMaxRun(balancedSequence(MAIN_TRIALS, LABELS), 3);
+  // Treino: balanceado simples com os labels disponíveis
+  const seqPractice = pseudorandomizeMaxRun(balancedSequence(PRACTICE_TRIALS, [
+    ...CONTRAST_LEVELS.map(c => `contraste_${c}`), "nenhum_estimulo"
+  ]), 3);
+  // Principal: usa a lista pré-balanceada (40 sem + 8 de cada contraste) embaralhada
+  const seqMain = pseudorandomizeMaxRun([...LABELS].sort(() => Math.random() - 0.5), 3);
 
   const practiceResults = await runSequence(container, seqPractice, "treino", true);
 
