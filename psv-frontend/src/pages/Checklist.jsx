@@ -1,10 +1,9 @@
 // frontend/src/pages/Checklist.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { checklistApi } from "../api/client";
+import { checklistApi, sessionsApi } from "../api/client";
 
-// 20 itens do instrumento — espelho do backend
 const ITEMS = [
   { n: 1,  text: "Incomoda-se com luz solar intensa ou ambientes muito iluminados" },
   { n: 2,  text: "Parece não notar objetos em movimento em seu campo visual" },
@@ -36,12 +35,54 @@ const SCALE = [
   { value: 4, label: "Sempre" },
 ];
 
+function Stepper({ checklistDone }) {
+  return (
+    <div className="stepper">
+      <div className="stepper__step">
+        <div className="stepper__dot stepper__dot--done">✓</div>
+        <span className="stepper__label">Cadastro</span>
+      </div>
+      <div className={`stepper__line ${checklistDone ? "stepper__line--done" : ""}`} />
+      <div className="stepper__step">
+        <div className={`stepper__dot ${checklistDone ? "stepper__dot--done" : "stepper__dot--active"}`}>
+          {checklistDone ? "✓" : "2"}
+        </div>
+        <span className="stepper__label">Check-list</span>
+      </div>
+      <div className="stepper__line" />
+      <div className="stepper__step">
+        <div className={`stepper__dot ${checklistDone ? "stepper__dot--active" : "stepper__dot--pending"}`}>3</div>
+        <span className="stepper__label">Tarefas</span>
+      </div>
+      <div className="stepper__line" />
+      <div className="stepper__step">
+        <div className="stepper__dot stepper__dot--pending">4</div>
+        <span className="stepper__label">Resultados</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Checklist() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [responses, setResponses] = useState({});
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
+  const [checking, setChecking]   = useState(true);
+  const [alreadyDone, setAlreadyDone] = useState(false);
+
+  // Ao carregar, verifica se o checklist já foi preenchido
+  useEffect(() => {
+    sessionsApi.summary(sessionId)
+      .then((summary) => {
+        if (summary.checklist) {
+          setAlreadyDone(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [sessionId]);
 
   const answered = Object.keys(responses).length;
   const total    = ITEMS.length;
@@ -59,49 +100,67 @@ export default function Checklist() {
     setError("");
     setLoading(true);
     try {
-      // Converte chaves para number (API espera int)
       const payload = Object.fromEntries(
         Object.entries(responses).map(([k, v]) => [parseInt(k, 10), v])
       );
       await checklistApi.submit(sessionId, payload);
       navigate(`/sessions/${sessionId}/tasks`);
     } catch (err) {
-      setError(err.response?.data?.detail || "Erro ao salvar checklist");
+      const detail = err.response?.data?.detail || "";
+      // Se já foi submetido, vai para tasks
+      if (detail.includes("já foi submetido")) {
+        navigate(`/sessions/${sessionId}/tasks`);
+      } else {
+        setError(detail || "Erro ao salvar checklist");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  if (checking) {
+    return (
+      <div className="page">
+        <Navbar />
+        <main className="container mt-4" style={{ maxWidth: 720 }}>
+          <p className="text-muted text-small text-center">Carregando sessão...</p>
+        </main>
+      </div>
+    );
+  }
+
+  // Checklist já feito — mostra aviso e botão para continuar para as tasks
+  if (alreadyDone) {
+    return (
+      <div className="page">
+        <Navbar />
+        <main className="container mt-4" style={{ maxWidth: 720 }}>
+          <Stepper checklistDone={true} />
+          <div className="card" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>✓</div>
+            <h2 className="mb-1">Check-list já preenchido</h2>
+            <p className="text-muted text-small mb-3">
+              O check-list desta sessão já foi registrado. Continue para as tarefas computadorizadas.
+            </p>
+            <button
+              className="btn btn--primary btn--lg"
+              onClick={() => navigate(`/sessions/${sessionId}/tasks`)}
+            >
+              Continuar para as tarefas →
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <Navbar />
       <main className="container mt-4" style={{ maxWidth: 720 }}>
-
-        {/* Stepper */}
-        <div className="stepper">
-          <div className="stepper__step">
-            <div className="stepper__dot stepper__dot--done">✓</div>
-            <span className="stepper__label">Cadastro</span>
-          </div>
-          <div className="stepper__line stepper__line--done" />
-          <div className="stepper__step">
-            <div className="stepper__dot stepper__dot--active">2</div>
-            <span className="stepper__label">Check-list</span>
-          </div>
-          <div className="stepper__line" />
-          <div className="stepper__step">
-            <div className="stepper__dot stepper__dot--pending">3</div>
-            <span className="stepper__label">Tarefas</span>
-          </div>
-          <div className="stepper__line" />
-          <div className="stepper__step">
-            <div className="stepper__dot stepper__dot--pending">4</div>
-            <span className="stepper__label">Resultados</span>
-          </div>
-        </div>
+        <Stepper checklistDone={false} />
 
         <div className="card">
-          {/* Cabeçalho + barra de progresso */}
           <div className="flex justify-between items-center mb-1">
             <h2>Check-list de Sensibilidade Visual</h2>
             <span className="text-muted text-small mono">{answered}/{total}</span>
@@ -110,7 +169,6 @@ export default function Checklist() {
             Indique com que frequência o participante apresenta cada comportamento.
           </p>
 
-          {/* Barra de progresso */}
           <div style={{
             height: 4, background: "var(--c-border)",
             borderRadius: 999, marginBottom: "1.5rem", overflow: "hidden",
@@ -122,7 +180,6 @@ export default function Checklist() {
             }} />
           </div>
 
-          {/* Legenda da escala */}
           <div style={{
             display: "flex", gap: "0.75rem", marginBottom: "1rem",
             padding: "0.625rem 1rem",
@@ -139,7 +196,6 @@ export default function Checklist() {
             ))}
           </div>
 
-          {/* Itens */}
           <div>
             {ITEMS.map((item) => (
               <div
@@ -167,7 +223,6 @@ export default function Checklist() {
             ))}
           </div>
 
-          {/* Rodapé */}
           {error && <p className="form-error mt-2">{error}</p>}
           <div className="flex gap-1 mt-3">
             <button className="btn btn--ghost" onClick={() => navigate("/")}>
