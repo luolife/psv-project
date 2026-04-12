@@ -59,8 +59,10 @@ export function clearContainer(container) {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; background: #000; color: #fff;
     width: 100%; height: 100%; font-family: 'DM Sans', sans-serif;
-    user-select: none; overflow: hidden;
+    user-select: none; overflow: hidden; outline: none;
   `;
+  container.setAttribute("tabindex", "0");
+  container.focus();
 }
 
 export function showText(container, html, waitForKey = true) {
@@ -127,7 +129,7 @@ export function waitForResponse(validKeys, timeoutMs) {
       if (resolved) return;
       resolved = true;
       document.removeEventListener("keydown", handler);
-      resolve({ key: null, rt_ms: null }); // omissão
+      resolve({ key: null, rt_ms: null });
     }, timeoutMs);
 
     const handler = (e) => {
@@ -142,6 +144,8 @@ export function waitForResponse(validKeys, timeoutMs) {
       });
     };
 
+    // Garante foco na janela antes de esperar resposta
+    window.focus();
     document.addEventListener("keydown", handler);
   });
 }

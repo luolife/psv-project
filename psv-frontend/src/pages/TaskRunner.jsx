@@ -104,7 +104,7 @@ export default function TaskRunner() {
   };
 
   return (
-    <div className="page">
+    <div className="page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Navbar />
 
       {phase === "intro" && (
@@ -178,7 +178,7 @@ export default function TaskRunner() {
       )}
 
       {phase === "running" && (
-        <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 60px)" }}>
           {/* Barra de progresso das tasks */}
           <div style={{
             padding: "1rem 1.5rem",
@@ -208,7 +208,7 @@ export default function TaskRunner() {
           {/* Container onde as tasks renderizam */}
           <div
             ref={taskContainerRef}
-            style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ flex: 1, minHeight: "calc(100vh - 120px)", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
           />
         </main>
       )}
