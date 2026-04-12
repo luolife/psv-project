@@ -65,9 +65,7 @@ function createGratingCanvas(contrast) {
   canvas.width  = w;
   canvas.height = h;
   const ctx    = canvas.getContext("2d");
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, w, h);
-
+  // Sem fillRect — pixels transparentes nas bordas revelam o fundo preto do container
   const imageData = ctx.createImageData(w, h);
   const data   = imageData.data;
   const cx     = w / 2;
@@ -88,12 +86,16 @@ function createGratingCanvas(contrast) {
       // background = 0 (preto), então:
       // pixel = contrast * sine * gauss → varia de -contrast*gauss a +contrast*gauss
       // Mapeado para 0-255: 128 + contrast * sine * gauss * 128
-      const val = Math.round(128 + contrast * sine * gauss * 128);
+      // Equivalente ao PsychoPy GratingStim(mask="gauss"):
+      // - pixel RGB = 128 + contrast * sine * 128 (grating senoidal)
+      // - canal alfa = gaussiana (bordas transparentes → fundo preto aparece)
+      const rgb   = Math.round(128 + contrast * sine * 128);
+      const alpha = Math.round(gauss * 255);
       const idx   = (y * w + x) * 4;
-      data[idx]     = val;
-      data[idx + 1] = val;
-      data[idx + 2] = val;
-      data[idx + 3] = 255;
+      data[idx]     = rgb;
+      data[idx + 1] = rgb;
+      data[idx + 2] = rgb;
+      data[idx + 3] = alpha;
     }
   }
   ctx.putImageData(imageData, 0, 0);

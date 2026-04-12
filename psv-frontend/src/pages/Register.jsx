@@ -9,16 +9,22 @@ const PROFESSIONS = [
 const COUNCILS = ["CREFITO", "CRP", "CRFa", "CFM", "CRM", "Outro"];
 const AREAS = [
   "ABA (Análise do Comportamento Aplicada)",
-  "Neuropsicologia",
-  "Reabilitação Sensorial",
-  "Terapia Ocupacional Pediátrica",
-  "Psicomotricidade",
-  "Saúde Mental Infantil",
-  "Outro",
+  "Neuropsicologia", "Reabilitação Sensorial",
+  "Terapia Ocupacional Pediátrica", "Psicomotricidade",
+  "Saúde Mental Infantil", "Outro",
 ];
 const TITULATIONS = [
   "Graduação", "Especialização", "Mestrado", "Doutorado", "Pós-doutorado",
 ];
+
+function maskCPF(value) {
+  return value
+    .replace(/\D/g, "")
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
 
 export default function Register() {
   const navigate = useNavigate();
@@ -33,6 +39,10 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleCPF = (e) => {
+    setForm({ ...form, cpf: maskCPF(e.target.value) });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -62,34 +72,19 @@ export default function Register() {
 
         <form className="auth-form" onSubmit={submit}>
 
-          {/* Dados pessoais */}
           <div className="form-group">
             <label className="form-label">Nome completo</label>
             <input className="form-input" name="name" value={form.name}
-              onChange={handle} placeholder="Dr. Lucas Ferreira" required />
+              onChange={handle} required />
           </div>
 
           <div className="form-group">
             <label className="form-label">CPF</label>
             <input className="form-input" name="cpf" value={form.cpf}
-              onChange={handle} placeholder="000.000.000-00" maxLength={14} required />
+              onChange={handleCPF} placeholder="000.000.000-00"
+              inputMode="numeric" required />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">E-mail</label>
-              <input className="form-input" type="email" name="email"
-                value={form.email} onChange={handle} required />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Senha</label>
-              <input className="form-input" type="password" name="password"
-                value={form.password} onChange={handle}
-                placeholder="Mín. 8 caracteres" required />
-            </div>
-          </div>
-
-          {/* Dados profissionais */}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Profissão</label>
@@ -112,8 +107,7 @@ export default function Register() {
           <div className="form-group">
             <label className="form-label">Registro profissional</label>
             <input className="form-input" name="council_register"
-              value={form.council_register} onChange={handle}
-              placeholder="ex: 12345-TO" />
+              value={form.council_register} onChange={handle} />
           </div>
 
           <div className="form-group">
@@ -141,8 +135,7 @@ export default function Register() {
                 Instituição <span className="text-muted text-small">— opcional</span>
               </label>
               <input className="form-input" name="institution"
-                value={form.institution} onChange={handle}
-                placeholder="USP, UNICAMP, Clínica..." />
+                value={form.institution} onChange={handle} />
             </div>
           </div>
 
@@ -160,7 +153,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Termos */}
           <div style={{
             background: "var(--c-bg)", border: "1px solid var(--c-border)",
             borderRadius: "var(--radius-md)", padding: "1rem",
@@ -181,13 +173,15 @@ export default function Register() {
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
             <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem",
               fontSize: "0.85rem", color: "var(--c-text-2)", cursor: "pointer" }}>
-              <input type="checkbox" checked={term1} onChange={(e) => setTerm1(e.target.checked)}
+              <input type="checkbox" checked={term1}
+                onChange={(e) => setTerm1(e.target.checked)}
                 style={{ marginTop: 3, flexShrink: 0 }} />
-              Declaro que sou responsável pelas informações inseridas no sistema e que atuação profissional está habilitada para uso do PSV.
+              Declaro que sou responsável pelas informações inseridas no sistema e que minha atuação profissional está habilitada para uso do PSV.
             </label>
             <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem",
               fontSize: "0.85rem", color: "var(--c-text-2)", cursor: "pointer" }}>
-              <input type="checkbox" checked={term2} onChange={(e) => setTerm2(e.target.checked)}
+              <input type="checkbox" checked={term2}
+                onChange={(e) => setTerm2(e.target.checked)}
                 style={{ marginTop: 3, flexShrink: 0 }} />
               Concordo com os Termos de Uso e Política de Privacidade do PSV descritos acima.
             </label>
