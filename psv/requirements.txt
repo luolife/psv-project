@@ -1,27 +1,26 @@
 # PSV — dependências do backend
-# Instalar: pip install -r requirements.txt
-# Versões pinadas para garantir reprodutibilidade
+# Versões compatíveis com Python 3.12
 
 # --- API ---
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
 
 # --- Banco de dados ---
-sqlalchemy==2.0.30
+sqlalchemy==2.0.36
 
 # --- Validação e configuração ---
-pydantic==2.7.1
-pydantic-settings==2.2.1
-pydantic[email]==2.7.1
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
 
 # --- Autenticação ---
 python-jose[cryptography]==3.3.0
 passlib==1.7.4
-bcrypt==4.0.1          # NÃO atualizar — 4.1+ quebra o passlib
+bcrypt==4.0.1
 
 # --- PDF ---
-reportlab==4.1.0
+reportlab==4.2.5
 
 # --- Dev / testes ---
-pytest==8.2.0
-httpx==0.27.0          # cliente para testes de integração FastAPI
+pytest==8.3.3
+httpx==0.27.2
