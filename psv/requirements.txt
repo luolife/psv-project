@@ -1,5 +1,4 @@
 # PSV — dependências do backend
-# Versões compatíveis com Python 3.12
 
 # --- API ---
 fastapi==0.115.0
@@ -7,6 +6,7 @@ uvicorn[standard]==0.32.0
 
 # --- Banco de dados ---
 sqlalchemy==2.0.36
+psycopg2-binary==2.9.9
 
 # --- Validação e configuração ---
 pydantic==2.9.2
