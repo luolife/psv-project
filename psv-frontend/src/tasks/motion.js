@@ -13,7 +13,7 @@ import {
   balancedSequence, pseudorandomizeMaxRun,
   clearContainer, showText, showBlank, showFeedback,
   showPause, showProgressBar, showInstructions, showCompletion,
-  waitForResponse, calcMetrics, delay,
+  waitForResponse, showTouchHint, hideTouchHint, calcMetrics, delay,
 } from "./_engine.js";
 
 // ---------------------------------------------------------------------------
@@ -192,7 +192,9 @@ async function runTrial(container, direction, trialIdx, total, fase) {
   container.style.position = "relative";
   showProgressBar(container, trialIdx, total);
 
+  showTouchHint(container);
   const { key, rt_ms } = await waitForResponse(["f", "j"], RESPONSE_WIN_MS);
+  hideTouchHint(container);
 
   const acerto_erro =
     key === null        ? "sem_resposta" :

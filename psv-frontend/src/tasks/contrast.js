@@ -14,7 +14,7 @@ import {
   balancedSequence, pseudorandomizeMaxRun,
   clearContainer, showText, showBlank, showFeedback,
   showPause, showProgressBar, showInstructions, showCompletion,
-  waitForResponse, calcMetrics, delay,
+  waitForResponse, showTouchHint, hideTouchHint, calcMetrics, delay,
 } from "./_engine.js";
 
 // ---------------------------------------------------------------------------
@@ -45,11 +45,15 @@ function createGratingCanvas(contrast) {
   canvas.width  = size;
   canvas.height = size;
   const ctx    = canvas.getContext("2d");
+  // Preenche fundo com preto primeiro
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, size, size);
+
   const imageData = ctx.createImageData(size, size);
   const data   = imageData.data;
   const cx     = size / 2;
   const cy     = size / 2;
-  const sigma  = size / 6;   // largura do envelope gaussiano
+  const sigma  = size / 5;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -57,7 +61,10 @@ function createGratingCanvas(contrast) {
       const dy    = y - cy;
       const gauss = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
       const sine  = Math.sin(2 * Math.PI * SF * dx);
-      const val   = Math.round(128 + contrast * gauss * sine * 128);
+      // Centro: grating senoidal em cinza médio modulado pelo contraste
+      // Bordas: gauss→0, pixel→preto (funde com fundo)
+      const grating = 128 + contrast * sine * 128;
+      const val = Math.round(grating * gauss);
       const idx   = (y * size + x) * 4;
       data[idx]     = val;
       data[idx + 1] = val;
@@ -71,6 +78,7 @@ function createGratingCanvas(contrast) {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     image-rendering: pixelated;
+    background: transparent;
   `;
   return canvas;
 }
@@ -98,7 +106,9 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   container.style.position = "relative";
   showProgressBar(container, trialIdx, total);
 
+  showTouchHint(container);
   const { key, rt_ms } = await waitForResponse(["f", "j"], RESPONSE_WIN_MS);
+  hideTouchHint(container);
 
   const acerto_erro =
     key === null          ? "sem_resposta" :

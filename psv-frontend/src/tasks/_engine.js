@@ -116,6 +116,43 @@ export function showBlank(container, durationMs) {
   return delay(durationMs);
 }
 
+// Mostra overlay de toque durante janela de resposta (só em touch devices)
+export function showTouchHint(container) {
+  const isTouchDevice = navigator.maxTouchPoints > 0;
+  if (!isTouchDevice) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "touch-hint";
+  overlay.style.cssText = `
+    position: absolute; inset: 0; display: flex; pointer-events: none;
+  `;
+
+  const left = document.createElement("div");
+  left.style.cssText = `
+    flex: 1; border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 2rem;
+  `;
+  left.innerHTML = `<span style="font-size:0.75rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em">F</span>`;
+
+  const right = document.createElement("div");
+  right.style.cssText = `
+    flex: 1;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 2rem;
+  `;
+  right.innerHTML = `<span style="font-size:0.75rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em">J</span>`;
+
+  overlay.appendChild(left);
+  overlay.appendChild(right);
+  container.appendChild(overlay);
+}
+
+export function hideTouchHint(container) {
+  const hint = container.querySelector("#touch-hint");
+  if (hint) hint.remove();
+}
+
 // ---------------------------------------------------------------------------
 // Coleta de resposta com RT
 // ---------------------------------------------------------------------------
@@ -125,28 +162,51 @@ export function waitForResponse(validKeys, timeoutMs) {
     const t0 = performance.now();
     let resolved = false;
 
-    const timeout = setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      document.removeEventListener("keydown", handler);
-      resolve({ key: null, rt_ms: null });
-    }, timeoutMs);
-
-    const handler = (e) => {
-      if (!validKeys.includes(e.key.toLowerCase())) return;
+    const finish = (key) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timeout);
-      document.removeEventListener("keydown", handler);
+      document.removeEventListener("keydown", keyHandler);
+      document.removeEventListener("touchstart", touchHandler);
+      document.removeEventListener("mousedown", mouseHandler);
       resolve({
-        key: e.key.toLowerCase(),
-        rt_ms: Math.round(performance.now() - t0),
+        key,
+        rt_ms: key ? Math.round(performance.now() - t0) : null,
       });
     };
 
-    // Garante foco na janela antes de esperar resposta
+    const timeout = setTimeout(() => finish(null), timeoutMs);
+
+    // Resposta por teclado
+    const keyHandler = (e) => {
+      const k = e.key.toLowerCase();
+      if (!validKeys.includes(k)) return;
+      finish(k);
+    };
+
+    // Resposta por toque — esquerda=F, direita=J
+    const touchHandler = (e) => {
+      // Ignora toques na barra de progresso (topo 40px)
+      const touch = e.touches[0];
+      if (!touch || touch.clientY < 40) return;
+      const key = touch.clientX < window.innerWidth / 2 ? "f" : "j";
+      if (!validKeys.includes(key)) return;
+      e.preventDefault();
+      finish(key);
+    };
+
+    // Resposta por clique (fallback desktop sem teclado)
+    const mouseHandler = (e) => {
+      if (e.clientY < 40) return;
+      const key = e.clientX < window.innerWidth / 2 ? "f" : "j";
+      if (!validKeys.includes(key)) return;
+      finish(key);
+    };
+
     window.focus();
-    document.addEventListener("keydown", handler);
+    document.addEventListener("keydown", keyHandler);
+    document.addEventListener("touchstart", touchHandler, { passive: false });
+    document.addEventListener("mousedown", mouseHandler);
   });
 }
 
