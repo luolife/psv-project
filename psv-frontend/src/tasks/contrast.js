@@ -89,7 +89,7 @@ function createGratingCanvas(contrast) {
       // pixel = contrast * sine * gauss → varia de -contrast*gauss a +contrast*gauss
       // Mapeado para 0-255: 128 + contrast * sine * gauss * 128
       const val = Math.round(128 + contrast * sine * gauss * 128);
-      const idx   = (y * size + x) * 4;
+      const idx   = (y * w + x) * 4;
       data[idx]     = val;
       data[idx + 1] = val;
       data[idx + 2] = val;
@@ -187,9 +187,9 @@ export async function runContrastTask(container) {
     `<p>Durante o teste, olhe para o <strong>centro da tela</strong>.</p>
      <br>
      <p style="color:#ccc;font-size:1rem;line-height:2.2">
-       <kbd style="background:#222;padding:3px 10px;border-radius:4px;font-family:monospace">F</kbd>
+       <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">←</kbd>
        → se <strong>enxergar</strong> o estímulo<br>
-       <kbd style="background:#222;padding:3px 10px;border-radius:4px;font-family:monospace">J</kbd>
+       <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">→</kbd>
        → se <strong>não enxergar nada</strong>
      </p>
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,

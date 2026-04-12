@@ -146,6 +146,20 @@ export default function Register() {
             </div>
           </div>
 
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">E-mail</label>
+              <input className="form-input" type="email" name="email"
+                value={form.email} onChange={handle} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Senha</label>
+              <input className="form-input" type="password" name="password"
+                value={form.password} onChange={handle}
+                placeholder="Mín. 8 caracteres" required />
+            </div>
+          </div>
+
           {/* Termos */}
           <div style={{
             background: "var(--c-bg)", border: "1px solid var(--c-border)",
