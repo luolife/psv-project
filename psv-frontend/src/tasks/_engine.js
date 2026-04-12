@@ -73,18 +73,52 @@ export function showText(container, html, waitForKey = true) {
     font-size: 1.1rem; color: #fff; padding: 2rem;
   `;
   div.innerHTML = html;
+
+  // Botão "Continuar" visível em touch devices
+  const isTouchDevice = navigator.maxTouchPoints > 0;
+  if (waitForKey && isTouchDevice) {
+    const btn = document.createElement("button");
+    btn.textContent = "Continuar";
+    btn.style.cssText = `
+      margin-top: 2rem; padding: 0.875rem 2.5rem;
+      background: #2563A8; color: #fff; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 500;
+      cursor: pointer; font-family: inherit; display: block;
+      margin-left: auto; margin-right: auto;
+    `;
+    div.appendChild(btn);
+  }
+
   container.appendChild(div);
 
   if (!waitForKey) return Promise.resolve();
 
   return new Promise((resolve) => {
-    const handler = (e) => {
-      // Ignora teclas modificadoras e Escape
-      if (["Shift","Control","Alt","Meta"].includes(e.key)) return;
-      document.removeEventListener("keydown", handler);
-      resolve(e.key);
+    let resolved = false;
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      document.removeEventListener("keydown", keyHandler);
+      resolve();
     };
-    setTimeout(() => document.addEventListener("keydown", handler), 300);
+
+    // Teclado
+    const keyHandler = (e) => {
+      if (["Shift","Control","Alt","Meta"].includes(e.key)) return;
+      finish();
+    };
+
+    // Toque em qualquer lugar da tela (exceto topo 40px)
+    const touchHandler = (e) => {
+      const touch = e.touches[0];
+      if (touch && touch.clientY > 40) finish();
+    };
+
+    setTimeout(() => {
+      document.addEventListener("keydown", keyHandler);
+      // Em touch, qualquer toque avança (o botão também dispara touchstart)
+      container.addEventListener("touchstart", touchHandler, { passive: true });
+    }, 400); // delay para não capturar o toque que abriu a tela
   });
 }
 
