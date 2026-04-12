@@ -93,13 +93,20 @@ export default function Results() {
             <button className="btn btn--ghost btn--sm" onClick={() => navigate("/")}>
               ← Início
             </button>
-            <button
-              className="btn btn--primary btn--sm"
-              onClick={downloadPdf}
-              disabled={downloading}
-            >
-              {downloading ? "Gerando PDF..." : "Baixar PDF"}
-            </button>
+            {session.status === "completed" && (
+              <button
+                className="btn btn--primary btn--sm"
+                onClick={downloadPdf}
+                disabled={downloading}
+              >
+                {downloading ? "Gerando PDF..." : "Baixar PDF"}
+              </button>
+            )}
+            {session.status !== "completed" && (
+              <span className="badge badge--medio" style={{ fontSize: "0.75rem" }}>
+                Avaliação incompleta
+              </span>
+            )}
           </div>
         </div>
 
@@ -175,13 +182,22 @@ export default function Results() {
           <button className="btn btn--outline" onClick={() => navigate("/sessions/new")}>
             Nova avaliação
           </button>
-          <button
-            className="btn btn--primary btn--lg"
-            onClick={downloadPdf}
-            disabled={downloading}
-          >
-            {downloading ? "Gerando..." : "Gerar relatório em PDF"}
-          </button>
+          {session.status === "completed" ? (
+            <button
+              className="btn btn--primary btn--lg"
+              onClick={downloadPdf}
+              disabled={downloading}
+            >
+              {downloading ? "Gerando..." : "Gerar relatório em PDF"}
+            </button>
+          ) : (
+            <button
+              className="btn btn--outline btn--lg"
+              onClick={() => navigate(`/sessions/${sessionId}/tasks`)}
+            >
+              Concluir tarefas pendentes →
+            </button>
+          )}
         </div>
       </main>
     </div>

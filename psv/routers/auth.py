@@ -35,11 +35,15 @@ def register(payload: ProfessionalCreate, db: Session = Depends(get_db)):
 
     professional = Professional(
         name=payload.name,
+        cpf=payload.cpf,
         email=payload.email,
         hashed_password=hash_password(payload.password),
         profession=payload.profession,
         council=payload.council,
         council_register=payload.council_register,
+        area=payload.area,
+        titulation=payload.titulation,
+        institution=payload.institution,
     )
     db.add(professional)
     db.commit()

@@ -47,13 +47,17 @@ class Professional(Base):
 
     id               = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
     name             = Column(String(200), nullable=False)
+    cpf              = Column(String(14),  nullable=True)
     email            = Column(String(200), nullable=False, unique=True, index=True)
     hashed_password  = Column(String(200), nullable=False)
-    profession       = Column(String(100), nullable=True)   # ex: Terapeuta Ocupacional
-    council          = Column(String(100), nullable=True)   # ex: CREFITO
-    council_register = Column(String(50),  nullable=True)   # ex: 12345-TO
+    profession       = Column(String(100), nullable=True)
+    council          = Column(String(100), nullable=True)
+    council_register = Column(String(50),  nullable=True)
+    area             = Column(String(200), nullable=True)   # área de atuação
+    titulation       = Column(String(100), nullable=True)   # titulação
+    institution      = Column(String(200), nullable=True)   # instituição
     created_at       = Column(DateTime, default=datetime.utcnow, nullable=False)
-    is_active        = Column(Integer, default=1, nullable=False)  # 1=ativo, 0=inativo
+    is_active        = Column(Integer, default=1, nullable=False)
 
     participants = relationship("Participant", back_populates="professional")
     sessions     = relationship("PSVSession",  back_populates="professional")
@@ -71,10 +75,17 @@ class Participant(Base):
 
     id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
     professional_id = Column(UUID(as_uuid=False), ForeignKey("professionals.id"), nullable=False, index=True)
-    initials        = Column(String(10),  nullable=False)   # ex: "M.S."
-    age             = Column(Integer,     nullable=False)
+    name            = Column(String(200), nullable=False)   # nome completo
+    birthdate       = Column(String(10),  nullable=True)    # YYYY-MM-DD
     sex             = Column(String(1),   nullable=False)   # "M" | "F" | "O"
-    notes           = Column(Text,        nullable=True)    # observações livres
+    diagnosis_cid   = Column(String(20),  nullable=True)    # CID-10/11
+    city            = Column(String(100), nullable=True)
+    state           = Column(String(50),  nullable=True)
+    country         = Column(String(100), nullable=True, default="Brasil")
+    notes           = Column(Text,        nullable=True)
+    # Campos legados — mantidos para compatibilidade
+    initials        = Column(String(10),  nullable=True)
+    age             = Column(Integer,     nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     professional = relationship("Professional", back_populates="participants")

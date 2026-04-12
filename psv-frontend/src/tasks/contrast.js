@@ -28,13 +28,12 @@ const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// Tamanho do estímulo: ~4° de ângulo visual
-// Calculado como proporção do menor lado da tela para ser consistente
-// em desktop e mobile (a distância de visualização tende a ser
-// proporcional ao tamanho da tela)
+// Tamanho do estímulo: ~5% da largura x ~8% da altura da tela
 function calcStimSize() {
-  const vmin = Math.min(window.innerWidth, window.innerHeight);
-  return Math.round(vmin * 0.12); // ~4° de ângulo visual
+  return {
+    w: Math.round(window.innerWidth  * 0.05),
+    h: Math.round(window.innerHeight * 0.08),
+  };
 }
 const SF               = 0.05;  // cycles/pixel — espelho do PsychoPy sf=0.05
 
@@ -58,31 +57,38 @@ const LABELS = buildBalancedLabels();
 // Equivalente: visual.GratingStim(tex="sin", mask="gauss", sf=0.05, size=100)
 // ---------------------------------------------------------------------------
 function createGratingCanvas(contrast) {
-  const size   = calcStimSize();
+  const stim   = calcStimSize();
+  // Canvas 2x para o envelope gaussiano ter espaço nas bordas
+  const w      = stim.w * 2;
+  const h      = stim.h * 2;
   const canvas = document.createElement("canvas");
-  canvas.width  = size;
-  canvas.height = size;
+  canvas.width  = w;
+  canvas.height = h;
   const ctx    = canvas.getContext("2d");
-  // Preenche fundo com preto primeiro
   ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, w, h);
 
-  const imageData = ctx.createImageData(size, size);
+  const imageData = ctx.createImageData(w, h);
   const data   = imageData.data;
-  const cx     = size / 2;
-  const cy     = size / 2;
-  const sigma  = size / 5;
+  const cx     = w / 2;
+  const cy     = h / 2;
+  // Sigma baseado na menor dimensão do estímulo
+  const sigma  = Math.min(stim.w, stim.h) / 3;
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
       const dx    = x - cx;
       const dy    = y - cy;
       const gauss = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
       const sine  = Math.sin(2 * Math.PI * SF * dx);
       // Centro: grating senoidal em cinza médio modulado pelo contraste
       // Bordas: gauss→0, pixel→preto (funde com fundo)
-      const grating = 128 + contrast * sine * 128;
-      const val = Math.round(grating * gauss);
+      // Fórmula correta do GratingStim do PsychoPy:
+      // pixel = background + contrast * sine * gaussian_mask
+      // background = 0 (preto), então:
+      // pixel = contrast * sine * gauss → varia de -contrast*gauss a +contrast*gauss
+      // Mapeado para 0-255: 128 + contrast * sine * gauss * 128
+      const val = Math.round(128 + contrast * sine * gauss * 128);
       const idx   = (y * size + x) * 4;
       data[idx]     = val;
       data[idx + 1] = val;
@@ -107,7 +113,7 @@ function createGratingCanvas(contrast) {
 async function runTrial(container, condition, trialIdx, total, fase) {
   const hasStim     = condition !== "nenhum_estimulo";
   const contrast    = hasStim ? parseFloat(condition.split("_")[1]) : null;
-  const correctResp = hasStim ? "f" : "j";
+  const correctResp = hasStim ? "arrowleft" : "arrowright";
 
   // Apresenta estímulo ou tela preta
   clearContainer(container);
@@ -125,7 +131,7 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   showProgressBar(container, trialIdx, total);
 
   showTouchHint(container);
-  const { key, rt_ms } = await waitForResponse(["f", "j"], RESPONSE_WIN_MS);
+  const { key, rt_ms } = await waitForResponse(["arrowleft", "arrowright"], RESPONSE_WIN_MS);
   hideTouchHint(container);
 
   const acerto_erro =

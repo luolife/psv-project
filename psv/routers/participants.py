@@ -38,11 +38,28 @@ def create_participant(
     db: Session = Depends(get_db),
     current: Professional = Depends(get_current_professional),
 ):
+    from datetime import date
+    # Calcula idade a partir da data de nascimento
+    age = None
+    if payload.birthdate:
+        try:
+            birth = date.fromisoformat(payload.birthdate)
+            today = date.today()
+            age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        except Exception:
+            pass
+
     participant = Participant(
         professional_id=current.id,
-        initials=payload.initials,
-        age=payload.age,
+        name=payload.name,
+        initials=payload.name[:5] if payload.name else "",
+        birthdate=payload.birthdate,
+        age=age,
         sex=payload.sex,
+        diagnosis_cid=payload.diagnosis_cid,
+        city=payload.city,
+        state=payload.state,
+        country=payload.country,
         notes=payload.notes,
     )
     db.add(participant)

@@ -26,13 +26,11 @@ const RESPONSE_WIN_MS  = 2500;  // 2.5s
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// Tamanho do estímulo: ~4° de ângulo visual
-// Calculado como proporção do menor lado da tela para ser consistente
-// em desktop e mobile (a distância de visualização tende a ser
-// proporcional ao tamanho da tela)
-function calcStimSize() {
+// Tamanho proporcional à tela — mesma lógica do motion
+// Campo circular: 50% do menor lado. Gabor: 12% do menor lado
+function calcGaborSize() {
   const vmin = Math.min(window.innerWidth, window.innerHeight);
-  return Math.round(vmin * 0.12); // ~4° de ângulo visual
+  return Math.round(vmin * 0.12);
 }
 const SF               = 0.05;  // gabor_sf=0.05
 const CONTRAST         = 1.0;   // gabor_contrast=1.0
@@ -47,7 +45,9 @@ const LABELS = ["esquerda", "direita"];
 function createGaborCanvas(direction) {
   const angleDeg = direction === "esquerda" ? -45 : 45;
   const angleRad = (angleDeg * Math.PI) / 180;
-  const size     = calcStimSize();
+  const stimSize = calcGaborSize();
+  // Canvas 2x para o envelope gaussiano ter espaço nas bordas
+  const size     = stimSize * 2;
   const canvas   = document.createElement("canvas");
   canvas.width   = size;
   canvas.height  = size;
@@ -59,7 +59,7 @@ function createGaborCanvas(direction) {
   const data     = imageData.data;
   const cx       = size / 2;
   const cy       = size / 2;
-  const sigma    = size / 6;
+  const sigma    = stimSize / 3;  // envelope relativo ao estímulo, não ao canvas
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -97,7 +97,7 @@ function createGaborCanvas(direction) {
 // Trial
 // ---------------------------------------------------------------------------
 async function runTrial(container, direction, trialIdx, total, fase) {
-  const correctResp = direction === "esquerda" ? "f" : "j";
+  const correctResp = direction === "esquerda" ? "arrowleft" : "arrowright";
 
   // Apresenta Gabor
   clearContainer(container);
@@ -112,7 +112,7 @@ async function runTrial(container, direction, trialIdx, total, fase) {
   showProgressBar(container, trialIdx, total);
 
   showTouchHint(container);
-  const { key, rt_ms } = await waitForResponse(["f", "j"], RESPONSE_WIN_MS);
+  const { key, rt_ms } = await waitForResponse(["arrowleft", "arrowright"], RESPONSE_WIN_MS);
   hideTouchHint(container);
 
   const acerto_erro =

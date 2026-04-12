@@ -28,8 +28,15 @@ const PAUSE_INTERVAL   = 40;
 
 // DotStim params — espelho do Python
 const N_DOTS       = 300;
-const DOT_SIZE     = 2;      // pixels — menor para telas de alta resolução
-const DOT_SPEED    = 6;      // pixels por frame (+20% sobre original)
+// Tamanho do ponto proporcional à tela (~5% largura, ~8% altura → média)
+// Calculado uma vez por task no momento que roda
+function calcDotSize() {
+  const w = window.innerWidth  * 0.05;
+  const h = window.innerHeight * 0.08;
+  return Math.max(2, Math.round((w + h) / 2));
+}
+const DOT_SIZE = calcDotSize();
+const DOT_SPEED    = 5;      // pixels por frame — equivalente ao PsychoPy (5px/frame @ 60fps)
 const DOT_LIFE     = 60;     // frames
 const COHERENCE    = 0.4;    // 40% dos dots coerentes
 
@@ -54,7 +61,7 @@ class DotStim {
     this.dirDeg  = direction === "esquerda" ? 180 : 0;
     const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
     this.fieldSize = FIELD_SIZE;
-    this.radius  = FIELD_SIZE / 2;
+    this.radius  = FIELD_SIZE / 2;  // em coordenadas CSS (ctx já escalado)
     this.dots    = [];
     this.frame   = 0;
     this._init();
@@ -114,31 +121,29 @@ class DotStim {
 
   drawFrame() {
     const { canvas, ctx, radius } = this;
-    const dpr = window.devicePixelRatio || 1;
-    const cx = canvas.width  / 2;
-    const cy = canvas.height / 2;
+    // canvas.width/height estão em pixels físicos (×dpr)
+    // mas ctx já foi escalado pelo dpr, então usamos coordenadas CSS
+    const cssW = canvas.width  / (window.devicePixelRatio || 1);
+    const cssH = canvas.height / (window.devicePixelRatio || 1);
+    const cx   = cssW / 2;
+    const cy   = cssH / 2;
 
-    // Fundo preto
+    // Fundo preto completo
     ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, cssW, cssH);
 
-    // Clip circular
+    // Clip circular perfeito
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // Desenha pontos como círculos suaves
+    // Pontos como círculos brancos
     ctx.fillStyle = "#fff";
-    const dotR = Math.max(1, DOT_SIZE * dpr / 2);
     for (const dot of this.dots) {
       this._moveDot(dot);
       ctx.beginPath();
-      ctx.arc(
-        cx + dot.x,
-        cy + dot.y,
-        dotR, 0, Math.PI * 2
-      );
+      ctx.arc(cx + dot.x, cy + dot.y, DOT_SIZE, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -154,28 +159,29 @@ function presentDots(container, direction, durationMs) {
     clearContainer(container);
     container.style.position = "relative";
 
-    const canvas = document.createElement("canvas");
-    const dpr    = window.devicePixelRatio || 1;
+    const dpr      = window.devicePixelRatio || 1;
     const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
-    const size   = FIELD_SIZE + 40;
-    // Escala o canvas pelos pixels físicos da tela (resolve pixelação)
-    canvas.width  = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width  = size + "px";
-    canvas.style.height = size + "px";
-    canvas.style.cssText += `
+    const size     = FIELD_SIZE + 40;
+
+    const canvas   = document.createElement("canvas");
+    canvas.width   = size * dpr;
+    canvas.height  = size * dpr;
+    canvas.style.cssText = `
+      width: ${size}px; height: ${size}px;
       position: absolute; left: 50%; top: 50%;
       transform: translate(-50%, -50%);
+      border: none; outline: none; background: #000;
     `;
-    // Escala o contexto para compensar o DPR
-    const ctxScale = canvas.getContext("2d");
-    ctxScale.scale(dpr, dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
     container.appendChild(canvas);
 
-    const stim  = new DotStim(canvas, direction);
-    const t0    = performance.now();
-    let animId  = null;
+    const stim = new DotStim(canvas, direction);
+    const t0   = performance.now();
+    let animId = null;
 
+    // Frame-based: cada chamada do loop = 1 frame = DOT_SPEED pixels
+    // Equivalente exato ao PsychoPy (5px/frame @ 60fps)
     const loop = () => {
       stim.drawFrame();
       if (performance.now() - t0 < durationMs) {
@@ -193,7 +199,7 @@ function presentDots(container, direction, durationMs) {
 // Trial
 // ---------------------------------------------------------------------------
 async function runTrial(container, direction, trialIdx, total, fase) {
-  const correctResp = direction === "esquerda" ? "f" : "j";
+  const correctResp = direction === "esquerda" ? "arrowleft" : "arrowright";
 
   showProgressBar(container, trialIdx, total);
 
@@ -206,7 +212,7 @@ async function runTrial(container, direction, trialIdx, total, fase) {
   showProgressBar(container, trialIdx, total);
 
   showTouchHint(container);
-  const { key, rt_ms } = await waitForResponse(["f", "j"], RESPONSE_WIN_MS);
+  const { key, rt_ms } = await waitForResponse(["arrowleft", "arrowright"], RESPONSE_WIN_MS);
   hideTouchHint(container);
 
   const acerto_erro =

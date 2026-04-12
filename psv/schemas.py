@@ -32,11 +32,15 @@ class TokenResponse(BaseModel):
 
 class ProfessionalCreate(BaseModel):
     name: str
+    cpf: Optional[str] = None
     email: EmailStr
     password: str
     profession: Optional[str] = None
     council: Optional[str] = None
     council_register: Optional[str] = None
+    area: Optional[str] = None
+    titulation: Optional[str] = None
+    institution: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -49,10 +53,14 @@ class ProfessionalCreate(BaseModel):
 class ProfessionalRead(BaseModel):
     id: str
     name: str
+    cpf: Optional[str] = None
     email: str
-    profession: Optional[str]
-    council: Optional[str]
-    council_register: Optional[str]
+    profession: Optional[str] = None
+    council: Optional[str] = None
+    council_register: Optional[str] = None
+    area: Optional[str] = None
+    titulation: Optional[str] = None
+    institution: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -63,25 +71,14 @@ class ProfessionalRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ParticipantCreate(BaseModel):
-    initials: str
-    age: int
+    name: str
+    birthdate: Optional[str] = None   # YYYY-MM-DD
     sex: str
+    diagnosis_cid: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = "Brasil"
     notes: Optional[str] = None
-
-    @field_validator("initials")
-    @classmethod
-    def initials_format(cls, v: str) -> str:
-        v = v.strip().upper()
-        if not v:
-            raise ValueError("Iniciais não podem ser vazias")
-        return v
-
-    @field_validator("age")
-    @classmethod
-    def age_range(cls, v: int) -> int:
-        if not (0 <= v <= 120):
-            raise ValueError("Idade deve estar entre 0 e 120")
-        return v
 
     @field_validator("sex")
     @classmethod
@@ -91,13 +88,26 @@ class ParticipantCreate(BaseModel):
             raise ValueError("Sexo deve ser M, F ou O")
         return v
 
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Nome não pode ser vazio")
+        return v
+
 
 class ParticipantRead(BaseModel):
     id: str
-    initials: str
-    age: int
+    name: Optional[str] = None
+    initials: Optional[str] = None
+    birthdate: Optional[str] = None
     sex: str
-    notes: Optional[str]
+    diagnosis_cid: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    notes: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

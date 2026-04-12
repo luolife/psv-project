@@ -39,7 +39,7 @@ export default function TaskRunner() {
   const navigate = useNavigate();
 
   const [phase, setPhase]             = useState("select");
-  const [selected, setSelected]       = useState(["contrast","motion","gabor"]);
+  const [selected, setSelected]       = useState([]);  // preenchido pelo useEffect
   const [currentTask, setCurrentTask] = useState(0);
   const [queue, setQueue]             = useState([]);
   const [doneThisRound, setDoneThisRound] = useState([]);
@@ -74,7 +74,8 @@ export default function TaskRunner() {
   };
 
   const startTasks = () => {
-    const q = ALL_TASKS.filter((t) => selected.includes(t.key));
+    // Filtra selected removendo qualquer task já concluída (proteção extra)
+    const q = ALL_TASKS.filter((t) => selected.includes(t.key) && !alreadyDone.includes(t.key));
     if (q.length === 0) return;
     setQueue(q);
     setDoneThisRound([]);
@@ -89,21 +90,39 @@ export default function TaskRunner() {
       for (let i = 0; i < queue.length; i++) {
         setCurrentTask(i);
         const task = queue[i];
+
+        // Pula se já foi feita nesta sessão (evita erro 409)
+        if (nowDone.includes(task.key)) {
+          setDoneThisRound((prev) => [...prev, task.key]);
+          continue;
+        }
+
         const result = await task.fn(taskContainerRef.current);
         setSubmitting(true);
-        await tasksApi.submit(sessionId, {
-          task_name:         task.key,
-          total_trials:      result.total_trials,
-          hits:              result.hits,
-          errors:            result.errors,
-          omissions:         result.omissions,
-          mean_rt_ms:        result.mean_rt_ms,
-          raw_trials:        result.raw_trials,
-          hardware_metadata: hardwareMetaRef.current,
-        });
-        setSubmitting(false);
-        nowDone.push(task.key);
-        setDoneThisRound((prev) => [...prev, task.key]);
+        try {
+          await tasksApi.submit(sessionId, {
+            task_name:         task.key,
+            total_trials:      result.total_trials,
+            hits:              result.hits,
+            errors:            result.errors,
+            omissions:         result.omissions,
+            mean_rt_ms:        result.mean_rt_ms,
+            raw_trials:        result.raw_trials,
+            hardware_metadata: hardwareMetaRef.current,
+          });
+          nowDone.push(task.key);
+          setDoneThisRound((prev) => [...prev, task.key]);
+        } catch (err) {
+          // 409 = já submetida — ignora e continua
+          if (err.response?.status === 409) {
+            nowDone.push(task.key);
+            setDoneThisRound((prev) => [...prev, task.key]);
+          } else {
+            throw err;
+          }
+        } finally {
+          setSubmitting(false);
+        }
       }
 
       // Só marca sessão como concluída se as 3 tasks foram feitas
@@ -236,7 +255,10 @@ export default function TaskRunner() {
                   onClick={startTasks}
                   disabled={selected.length === 0}
                 >
-                  Iniciar {selected.length} tarefa{selected.length !== 1 ? "s" : ""}
+                  {(() => {
+                const count = selected.filter(k => !alreadyDone.includes(k)).length;
+                return `Iniciar ${count} tarefa${count !== 1 ? "s" : ""}`;
+              })()}
                 </button>
               </>
             )}

@@ -167,7 +167,7 @@ export function showTouchHint(container) {
     display: flex; align-items: flex-end; justify-content: center;
     padding-bottom: 2rem;
   `;
-  left.innerHTML = `<span style="font-size:0.75rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em">F</span>`;
+  left.innerHTML = `<span style="font-size:1.2rem;color:rgba(255,255,255,0.25)">←</span>`;
 
   const right = document.createElement("div");
   right.style.cssText = `
@@ -175,7 +175,7 @@ export function showTouchHint(container) {
     display: flex; align-items: flex-end; justify-content: center;
     padding-bottom: 2rem;
   `;
-  right.innerHTML = `<span style="font-size:0.75rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em">J</span>`;
+  right.innerHTML = `<span style="font-size:1.2rem;color:rgba(255,255,255,0.25)">→</span>`;
 
   overlay.appendChild(left);
   overlay.appendChild(right);
@@ -223,7 +223,7 @@ export function waitForResponse(validKeys, timeoutMs) {
       // Ignora toques na barra de progresso (topo 40px)
       const touch = e.touches[0];
       if (!touch || touch.clientY < 40) return;
-      const key = touch.clientX < window.innerWidth / 2 ? "f" : "j";
+      const key = touch.clientX < window.innerWidth / 2 ? "arrowleft" : "arrowright";
       if (!validKeys.includes(key)) return;
       e.preventDefault();
       finish(key);
@@ -232,7 +232,7 @@ export function waitForResponse(validKeys, timeoutMs) {
     // Resposta por clique (fallback desktop sem teclado)
     const mouseHandler = (e) => {
       if (e.clientY < 40) return;
-      const key = e.clientX < window.innerWidth / 2 ? "f" : "j";
+      const key = e.clientX < window.innerWidth / 2 ? "arrowleft" : "arrowright";
       if (!validKeys.includes(key)) return;
       finish(key);
     };
