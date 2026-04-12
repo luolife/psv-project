@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+psv_dev.db
+Resultado Contraste/
+Resultado Motion/
+Resultado Gabor/
+
+# Node
+node_modules/
+dist/
+psv/static/
+
+# Sistema
+.DS_Store
+Thumbs.db

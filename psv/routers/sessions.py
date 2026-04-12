@@ -1,0 +1,231 @@
+"""
+PSV — Router: Sessions
+POST   /sessions                        → abre nova sessão
+GET    /sessions                        → lista do profissional
+GET    /sessions/{id}                   → detalhe da sessão
+PATCH  /sessions/{id}/status            → marca completed / abandoned
+POST   /sessions/{id}/checklist         → salva checklist + calcula scores
+POST   /sessions/{id}/tasks             → salva resultado de uma task
+GET    /sessions/{id}/summary           → resumo completo para relatório
+"""
+
+from datetime import datetime, timezone
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from auth import get_current_professional
+from core.checklist_logic import calculate_scores, ChecklistValidationError
+from database import get_db
+from models import (
+    Professional, Participant, PSVSession,
+    ChecklistResult, TaskResult,
+    SessionStatus, TaskName,
+)
+from schemas import (
+    SessionCreate, SessionRead, SessionStatusUpdate,
+    ChecklistSubmit, ChecklistResultRead,
+    TaskResultSubmit, TaskResultRead,
+    SessionSummary, ParticipantRead,
+)
+
+router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_own_session(
+    session_id: str,
+    db: Session,
+    current: Professional,
+) -> PSVSession:
+    s = db.query(PSVSession).filter(
+        PSVSession.id == session_id,
+        PSVSession.professional_id == current.id,
+    ).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Sessão não encontrada")
+    return s
+
+
+def _require_in_progress(session: PSVSession) -> None:
+    if session.status != SessionStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Sessão já está '{session.status}' — não pode ser modificada",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Sessões
+# ---------------------------------------------------------------------------
+
+@router.post("", response_model=SessionRead, status_code=201)
+def create_session(
+    payload: SessionCreate,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    # Garante que o participante pertence ao profissional
+    participant = db.query(Participant).filter(
+        Participant.id == payload.participant_id,
+        Participant.professional_id == current.id,
+    ).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participante não encontrado")
+
+    session = PSVSession(
+        participant_id=payload.participant_id,
+        professional_id=current.id,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+@router.get("", response_model=List[SessionRead])
+def list_sessions(
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    return (
+        db.query(PSVSession)
+        .filter(PSVSession.professional_id == current.id)
+        .order_by(PSVSession.created_at.desc())
+        .all()
+    )
+
+
+@router.get("/{session_id}", response_model=SessionRead)
+def get_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    return _get_own_session(session_id, db, current)
+
+
+@router.patch("/{session_id}/status", response_model=SessionRead)
+def update_status(
+    session_id: str,
+    payload: SessionStatusUpdate,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    session = _get_own_session(session_id, db, current)
+    _require_in_progress(session)
+
+    session.status = SessionStatus(payload.status)
+    if payload.status == "completed":
+        session.completed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+# ---------------------------------------------------------------------------
+# Checklist
+# ---------------------------------------------------------------------------
+
+@router.post("/{session_id}/checklist", response_model=ChecklistResultRead, status_code=201)
+def submit_checklist(
+    session_id: str,
+    payload: ChecklistSubmit,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    session = _get_own_session(session_id, db, current)
+    _require_in_progress(session)
+
+    if session.checklist is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Checklist já foi submetido para esta sessão",
+        )
+
+    # Cálculo via core — valida e calcula scores
+    try:
+        result = calculate_scores(payload.responses)
+    except ChecklistValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    checklist = ChecklistResult(
+        session_id=session_id,
+        hev_score=result.hev.normalized_score,
+        hov_score=result.hov.normalized_score,
+        bsv_score=result.bsv.normalized_score,
+        hev_level=result.hev.level.value,
+        hov_level=result.hov.level.value,
+        bsv_level=result.bsv.level.value,
+        raw_responses=payload.responses,
+    )
+    db.add(checklist)
+    db.commit()
+    db.refresh(checklist)
+    return checklist
+
+
+# ---------------------------------------------------------------------------
+# Tasks
+# ---------------------------------------------------------------------------
+
+@router.post("/{session_id}/tasks", response_model=TaskResultRead, status_code=201)
+def submit_task(
+    session_id: str,
+    payload: TaskResultSubmit,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    session = _get_own_session(session_id, db, current)
+    _require_in_progress(session)
+
+    # Impede submissão duplicada da mesma task
+    existing = db.query(TaskResult).filter(
+        TaskResult.session_id == session_id,
+        TaskResult.task_name == TaskName(payload.task_name),
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Task '{payload.task_name}' já foi submetida para esta sessão",
+        )
+
+    task = TaskResult(
+        session_id=session_id,
+        task_name=TaskName(payload.task_name),
+        total_trials=payload.total_trials,
+        hits=payload.hits,
+        errors=payload.errors,
+        omissions=payload.omissions,
+        mean_rt_ms=payload.mean_rt_ms,
+        raw_trials=[t.model_dump() for t in payload.raw_trials],
+        hardware_metadata=payload.hardware_metadata.model_dump(),
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+# ---------------------------------------------------------------------------
+# Resumo completo — alimenta o relatório PDF
+# ---------------------------------------------------------------------------
+
+@router.get("/{session_id}/summary", response_model=SessionSummary)
+def get_summary(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    session = _get_own_session(session_id, db, current)
+    return SessionSummary(
+        session=SessionRead.model_validate(session),
+        participant=ParticipantRead.model_validate(session.participant),
+        checklist=ChecklistResultRead.model_validate(session.checklist) if session.checklist else None,
+        tasks=[TaskResultRead.model_validate(t) for t in session.task_results],
+    )
