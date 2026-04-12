@@ -1,12 +1,11 @@
 // frontend/src/tasks/contrast.js
 //
 // Contrast Sensitivity Task
-// Equivalente direto de: Task - Contraste (1).py
 //
 // Paradigma:
 //   Estímulo: grating senoidal com envelope gaussiano (GratingStim)
 //   Contrastes: [0.05, 0.08, 0.16, 0.32, 0.64] + trials sem estímulo
-//   F = detectou estímulo | J = não detectou nada
+//   ← = detectou estímulo | → = não detectou nada
 //   Prática: 10 trials com feedback | Principal: 80 trials sem feedback
 //   Pausa automática a cada 40 trials
 
@@ -18,11 +17,12 @@ import {
 } from "./_engine.js";
 
 // ---------------------------------------------------------------------------
-// Parâmetros — espelho exato do Python
+// Parâmetros
 // ---------------------------------------------------------------------------
 const PRACTICE_TRIALS  = 10;
 const MAIN_TRIALS      = 80;
 const CONTRAST_LEVELS  = [0.05, 0.08, 0.16, 0.32, 0.64];
+const SF               = 0.05;   // cycles/pixel
 const STIM_DURATION_MS = 800;
 const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
@@ -35,43 +35,52 @@ function calcStimSize() {
     h: Math.round(window.innerHeight * 0.08),
   };
 }
-const SF               = 0.05;  // cycles/pixel — espelho do PsychoPy sf=0.05
 
 // Randomização balanceada:
-// 40 trials sem estímulo + 8 trials por nível de contraste (5×8=40) = 80 total
-// Isso garante proporção igual entre presença/ausência e entre níveis
+// 40 sem estímulo + 8 por nível de contraste (5×8=40) = 80 total
 function buildBalancedLabels() {
   const labels = [];
-  // 8 de cada contraste
   for (const c of CONTRAST_LEVELS) {
     for (let i = 0; i < 8; i++) labels.push(`contraste_${c}`);
   }
-  // 40 sem estímulo
   for (let i = 0; i < 40; i++) labels.push("nenhum_estimulo");
   return labels;
 }
 const LABELS = buildBalancedLabels();
 
 // ---------------------------------------------------------------------------
-// Grating senoidal + envelope gaussiano via Canvas 2D
-// Equivalente: visual.GratingStim(tex="sin", mask="gauss", sf=0.05, size=100)
+// Grating senoidal com envelope gaussiano
+//
+// Fórmula: pixel = contrast × gauss × (0.5 + 0.5 × sin) × 255
+//
+// - Fundo sempre PRETO (0)
+// - No centro (gauss=1, sin=1): pixel = contrast × 255  → branco escalado
+// - No centro (gauss=1, sin=-1): pixel = 0              → preto
+// - Nas bordas (gauss→0): pixel → 0                     → preto, funde com fundo
+// - Contraste baixo (0.05): pico de ~13/255             → quase invisível
+// - Contraste alto (0.64): pico de ~163/255             → bem visível
 // ---------------------------------------------------------------------------
 function createGratingCanvas(contrast) {
-  const stim   = calcStimSize();
-  // Canvas 2x para o envelope gaussiano ter espaço nas bordas
-  const w      = stim.w * 2;
-  const h      = stim.h * 2;
-  const canvas = document.createElement("canvas");
+  const stim = calcStimSize();
+  // Canvas 3× para o envelope decair completamente antes das bordas
+  const w    = stim.w * 3;
+  const h    = stim.h * 3;
+
+  const canvas  = document.createElement("canvas");
   canvas.width  = w;
   canvas.height = h;
-  const ctx    = canvas.getContext("2d");
-  // Sem fillRect — pixels transparentes nas bordas revelam o fundo preto do container
+
+  const ctx = canvas.getContext("2d");
+  // Fundo preto explícito
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+
   const imageData = ctx.createImageData(w, h);
-  const data   = imageData.data;
-  const cx     = w / 2;
-  const cy     = h / 2;
-  // Sigma baseado na menor dimensão do estímulo
-  const sigma  = Math.min(stim.w, stim.h) / 3;
+  const data      = imageData.data;
+  const cx        = w / 2;
+  const cy        = h / 2;
+  // Sigma apertado para o preto "engolir" as bordas rapidamente
+  const sigma     = Math.min(stim.w, stim.h) / 2;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -79,23 +88,14 @@ function createGratingCanvas(contrast) {
       const dy    = y - cy;
       const gauss = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
       const sine  = Math.sin(2 * Math.PI * SF * dx);
-      // Centro: grating senoidal em cinza médio modulado pelo contraste
-      // Bordas: gauss→0, pixel→preto (funde com fundo)
-      // Fórmula correta do GratingStim do PsychoPy:
-      // pixel = background + contrast * sine * gaussian_mask
-      // background = 0 (preto), então:
-      // pixel = contrast * sine * gauss → varia de -contrast*gauss a +contrast*gauss
-      // Mapeado para 0-255: 128 + contrast * sine * gauss * 128
-      // Equivalente ao PsychoPy GratingStim(mask="gauss"):
-      // - pixel RGB = 128 + contrast * sine * 128 (grating senoidal)
-      // - canal alfa = gaussiana (bordas transparentes → fundo preto aparece)
-      const rgb   = Math.round(128 + contrast * sine * 128);
-      const alpha = Math.round(gauss * 255);
+      // Pixel varia de 0 (preto) a contrast×255 (branco)
+      // Fundo sempre preto — sem cinza de base
+      const val   = Math.round(contrast * gauss * (0.5 + 0.5 * sine) * 255);
       const idx   = (y * w + x) * 4;
-      data[idx]     = rgb;
-      data[idx + 1] = rgb;
-      data[idx + 2] = rgb;
-      data[idx + 3] = alpha;
+      data[idx]     = val;
+      data[idx + 1] = val;
+      data[idx + 2] = val;
+      data[idx + 3] = 255;
     }
   }
   ctx.putImageData(imageData, 0, 0);
@@ -104,7 +104,6 @@ function createGratingCanvas(contrast) {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     image-rendering: pixelated;
-    background: transparent;
   `;
   return canvas;
 }
@@ -117,7 +116,6 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   const contrast    = hasStim ? parseFloat(condition.split("_")[1]) : null;
   const correctResp = hasStim ? "arrowleft" : "arrowright";
 
-  // Apresenta estímulo ou tela preta
   clearContainer(container);
   container.style.position = "relative";
   showProgressBar(container, trialIdx, total);
@@ -127,7 +125,6 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   }
   await delay(STIM_DURATION_MS);
 
-  // Limpa e aguarda resposta
   clearContainer(container);
   container.style.position = "relative";
   showProgressBar(container, trialIdx, total);
@@ -137,8 +134,8 @@ async function runTrial(container, condition, trialIdx, total, fase) {
   hideTouchHint(container);
 
   const acerto_erro =
-    key === null          ? "sem_resposta" :
-    key === correctResp   ? "acerto"       : "erro";
+    key === null        ? "sem_resposta" :
+    key === correctResp ? "acerto"       : "erro";
 
   return {
     fase, trial: trialIdx,
@@ -197,12 +194,13 @@ export async function runContrastTask(container) {
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);
 
-  // Treino: balanceado simples com os labels disponíveis
   const seqPractice = pseudorandomizeMaxRun(balancedSequence(PRACTICE_TRIALS, [
     ...CONTRAST_LEVELS.map(c => `contraste_${c}`), "nenhum_estimulo"
   ]), 3);
-  // Principal: usa a lista pré-balanceada (40 sem + 8 de cada contraste) embaralhada
-  const seqMain = pseudorandomizeMaxRun([...LABELS].sort(() => Math.random() - 0.5), 3);
+
+  const seqMain = pseudorandomizeMaxRun(
+    [...LABELS].sort(() => Math.random() - 0.5), 3
+  );
 
   const practiceResults = await runSequence(container, seqPractice, "treino", true);
 
