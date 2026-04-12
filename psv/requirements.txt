@@ -6,7 +6,7 @@ uvicorn[standard]==0.32.0
 
 # --- Banco de dados ---
 sqlalchemy==2.0.36
-psycopg2-binary==2.9.9
+pg8000==1.31.2
 
 # --- Validação e configuração ---
 pydantic==2.9.2
