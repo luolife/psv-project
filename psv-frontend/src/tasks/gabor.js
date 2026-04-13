@@ -26,11 +26,10 @@ const RESPONSE_WIN_MS  = 2500;  // 2.5s
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// Tamanho proporcional à tela — mesma lógica do motion
-// Campo circular: 50% do menor lado. Gabor: 12% do menor lado
+// Tamanho idêntico ao estímulo de contraste — mesma fórmula do contrast.js
+// size=100px @ 1080p, escala proporcional em outras resoluções
 function calcGaborSize() {
-  const vmin = Math.min(window.innerWidth, window.innerHeight);
-  return Math.round(vmin * 0.12);
+  return Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
 }
 const SF               = 0.05;  // gabor_sf=0.05
 const CONTRAST         = 1.0;   // gabor_contrast=1.0

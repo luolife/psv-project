@@ -42,7 +42,7 @@ const PAUSE_INTERVAL   = 40;
 const PX_SCALE      = Math.min(window.innerWidth, window.innerHeight) / 1080;
 const N_DOTS        = 300;
 const COHERENCE     = 0.4;
-const FIELD_RADIUS  = Math.round(50 * PX_SCALE);         // mesmo diâmetro do gabor (100px @1080p)
+const FIELD_RADIUS  = Math.round(175 * PX_SCALE);        // field_size=(350,350)/2 → 175px @1080p
 const DOT_SIZE      = Math.max(1, Math.round(2 * PX_SCALE)); // dot_size=4px diâm → raio=2px @1080p
 const DOT_SPEED_PS  = 300 * PX_SCALE;                    // 5px/frame×60fps=300px/s, escalado
 const DOT_LIFE_MS   = 1000;                               // dot_life=60frames × (1000ms/60fps)

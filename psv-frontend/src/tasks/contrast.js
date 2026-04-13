@@ -16,7 +16,7 @@ import {
 
 const PRACTICE_TRIALS  = 10;
 const MAIN_TRIALS      = 80;
-const CONTRAST_LEVELS  = [0.08, 0.16, 0.24, 0.32, 0.64];
+const CONTRAST_LEVELS  = [0.09, 0.16, 0.28, 0.51, 0.90];  // log ~0.25 steps a partir de 0.09
 const STIM_DURATION_MS = 800;
 const RESPONSE_WIN_MS  = 2000;
 const ISI_MS           = 800;
