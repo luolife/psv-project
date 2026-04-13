@@ -217,13 +217,6 @@ export default function TaskRunner() {
                     }}>
                       {on && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
                     </div>
-                    <div style={{
-                      width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                      background: done ? "var(--c-teal-500)" : on ? "var(--c-blue-500)" : "var(--c-blue-100)",
-                      color: on ? "#fff" : "var(--c-blue-700)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "0.8rem", fontWeight: 600,
-                    }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: "0.9rem", fontWeight: on ? 500 : 400 }}>{t.label}</span>
                       {done && <span className="text-small text-muted" style={{ marginLeft: "0.5rem" }}>— concluída</span>}

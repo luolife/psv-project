@@ -102,11 +102,26 @@ h3 { font-size: 1rem;    font-weight: 500; }
   border-bottom: 1px solid var(--c-border);
   height: 60px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   position: sticky;
   top: 0;
   z-index: 100;
   box-shadow: var(--shadow-sm);
+}
+
+/* Linha arco-íris fina na base da navbar */
+.navbar__rainbow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    #E53E3E, #ED8936, #ECC94B, #48BB78,
+    #4299E1, #667EEA, #9F7AEA, #F687B3
+  );
 }
 
 .navbar__inner {
@@ -431,8 +446,12 @@ h3 { font-size: 1rem;    font-weight: 500; }
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: var(--c-bg);
   padding: 2rem 1rem;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(236,201,74,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 60% 80%, rgba(72,187,120,0.07) 0%, transparent 55%),
+    var(--c-bg);
 }
 
 .auth-card {
@@ -451,8 +470,14 @@ h3 { font-size: 1rem;    font-weight: 500; }
 }
 
 .auth-header__logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.auth-header__name {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-blue-700);
   letter-spacing: -0.02em;
 }

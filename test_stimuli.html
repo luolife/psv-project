@@ -264,8 +264,12 @@ function restart() {
     const deltaMs = Math.min(lastTs !== null ? ts - lastTs : (1000/60), 50);
     lastTs = ts;
 
+    // Limpa usando dimensões físicas reais — evita rastro em telas retina (DPR > 1)
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
     ctx.save();
     ctx.beginPath();

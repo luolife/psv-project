@@ -149,8 +149,14 @@ class DotStim {
     const cx   = cssW / 2;
     const cy   = cssH / 2;
 
+    // Limpa o canvas usando as dimensões físicas reais (sem transform DPR).
+    // fillRect com cssW/cssH só cobre 1/dpr² dos pixels em telas retina,
+    // deixando rastro dos frames anteriores nos pixels restantes.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, cssW, cssH);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
     ctx.save();
     ctx.beginPath();

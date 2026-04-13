@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { PsvLogo } from "../components/Navbar";
 
 export default function Login() {
   const { login } = useAuth();
@@ -30,7 +31,10 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-header__logo">PSV</div>
+          <div className="auth-header__logo">
+            <PsvLogo size={56} />
+          </div>
+          <div className="auth-header__name">PSV</div>
           <div className="auth-header__sub">Protocolo Sensorial Visual</div>
         </div>
 
