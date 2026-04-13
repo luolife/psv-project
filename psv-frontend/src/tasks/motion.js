@@ -49,6 +49,12 @@ const DOT_LIFE_MS   = 1000;                               // dot_life=60frames �
 
 const LABELS = ["esquerda", "direita"];
 
+// Sorteia uma das 4 direções cardinais (0°, 90°, 180°, 270°).
+// Garante que o ruído se mova apenas horizontal ou verticalmente.
+function _randCardinal() {
+  return [0, 90, 180, 270][Math.floor(Math.random() * 4)];
+}
+
 // ---------------------------------------------------------------------------
 // DotStim — implementação equivalente ao visual.DotStim do PsychoPy
 //
@@ -85,7 +91,7 @@ class DotStim {
       // lifeMs escalonado aleatoriamente para evitar reinícios síncronos
       lifeMs:   Math.random() * DOT_LIFE_MS,
       coherent: idx < Math.round(N_DOTS * COHERENCE),
-      noiseDeg: Math.random() * 360,
+      noiseDeg: _randCardinal(),
     };
   }
 
@@ -99,20 +105,15 @@ class DotStim {
       dot.x         = r * Math.cos(angle);
       dot.y         = r * Math.sin(angle);
       dot.lifeMs    = 0;
-      dot.noiseDeg  = Math.random() * 360;
+      dot.noiseDeg  = _randCardinal();
       return;
     }
 
-    // noiseDots='direction' (PsychoPy default): pontos de ruído sorteiam
-    // nova direção aleatória a cada frame — random walk isotrópico.
-    // Coeficiente de difusão = (v²/2) × dt, igual ao PsychoPy independente
-    // de framerate, pois v e dt escalam inversamente.
-    if (!dot.coherent) {
-      dot.noiseDeg = Math.random() * 360;
-    }
-
+    // Pontos de ruído têm direção CARDINAL fixa (0°/90°/180°/270°) durante
+    // toda a sua vida → movimento exclusivamente horizontal ou vertical.
+    // Sorteiam nova direção apenas quando expiram ou saem do campo.
     const moveRad = dot.coherent
-      ? (this.dirDeg * Math.PI) / 180
+      ? (this.dirDeg   * Math.PI) / 180
       : (dot.noiseDeg  * Math.PI) / 180;
 
     const move = DOT_SPEED_PS * (deltaMs / 1000);  // px neste frame
@@ -126,7 +127,7 @@ class DotStim {
       dot.x        = r * Math.cos(angle);
       dot.y        = r * Math.sin(angle);
       dot.lifeMs   = 0;
-      dot.noiseDeg = Math.random() * 360;
+      dot.noiseDeg = _randCardinal();
     }
   }
 

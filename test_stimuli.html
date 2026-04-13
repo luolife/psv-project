@@ -84,7 +84,7 @@
 <div class="panel active" id="panel-contrast">
   <div class="note">
     Equivalente: <code>GratingStim(tex="sin", mask="gauss", sf=0.05, opacity=contrast, size=100)</code><br>
-    Circular • ~5 listras @ 1080p • máscara gaussiana fixa (sigma=size/6) • só a <em>opacity</em> varia entre trials
+    Circular • ~5 listras @ 1080p • máscara gaussiana fixa (sigma=size/5) • só a <em>opacity</em> varia entre trials
   </div>
   <div class="cg" id="contrastGrid"></div>
   <div id="contrastInfo" class="note" style="margin-top:16px"></div>
@@ -95,7 +95,7 @@
   <div class="note">
     Equivalente: <code>DotStim(nDots=300, speed=5px/frame, noiseDots='direction')</code><br>
     • Pontos <strong>coerentes</strong>: mesma direção o trial todo &nbsp;|&nbsp;
-      Pontos de <strong>ruído</strong>: direção aleatória a <em>cada frame</em> (PsychoPy default)<br>
+      Pontos de <strong>ruído</strong>: direção aleatória <em>fixa por vida do ponto</em> → movimento sustentado em todas as direções<br>
     • Campo circular com clip — sem bordas quadradas
   </div>
 
@@ -145,7 +145,7 @@ function showTab(name, btn) {
 (function buildContrast() {
   const S  = Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
   const SF = 0.05;
-  const cx = S / 2, sigma = S / 6;
+  const cx = S / 2, sigma = S / 5;
 
   const GAUSS = new Float32Array(S * S);
   const SINE  = new Float32Array(S * S);
@@ -197,6 +197,11 @@ function showTab(name, btn) {
 // ─────────────────────────────────────────────
 // Parâmetros direto do .py: dot_size=4(diam)→raio=2px, speed=5px/frame@60fps=300px/s,
 // dot_life=60frames=1000ms, field_size=(350,350)circle→raio=175px, tudo escalado
+// Sorteia uma das 4 direções cardinais — ruído só horizontal ou vertical
+function _randCardinal() {
+  return [0, 90, 180, 270][Math.floor(Math.random() * 4)];
+}
+
 const PX_SCALE     = Math.min(window.innerWidth, window.innerHeight) / 1080;
 const N_DOTS       = 300;
 const DOT_SPEED_PS = 300 * PX_SCALE;                      // px/segundo
@@ -244,7 +249,7 @@ function restart() {
       y: r * Math.sin(a),
       lifeMs: Math.random() * DOT_LIFE_MS,  // staggered
       coherent: i < nCoherent,
-      noiseDeg: Math.random() * 360,
+      noiseDeg: _randCardinal(),
     };
   });
 
@@ -271,7 +276,9 @@ function restart() {
         dot.x = r * Math.cos(a); dot.y = r * Math.sin(a);
         dot.lifeMs = 0; dot.noiseDeg = Math.random() * 360;
       } else {
-        if (!dot.coherent) dot.noiseDeg = Math.random() * 360;
+        // Ruído: direção FIXA por vida — só muda quando expira ou sai do campo.
+        // Isso faz cada ponto de ruído se mover em linha reta numa direção aleatória
+        // (cima, baixo, diagonal…), igual ao RDK clássico.
         const rad2 = (dot.coherent ? dirDeg : dot.noiseDeg) * Math.PI / 180;
         const move = DOT_SPEED_PS * (deltaMs / 1000);
         dot.x += move * Math.cos(rad2);
@@ -299,7 +306,7 @@ function restart() {
   document.getElementById('motionStat').innerHTML =
     'DOT_R: <span>' + DOT_R + 'px raio (' + (DOT_R*2) + 'px diâm)</span> &nbsp;|&nbsp; ' +
     'Coerentes: <span>' + nCoherent + '/' + N_DOTS + ' (' + Math.round(coh*100) + '%)</span> &nbsp;|&nbsp; ' +
-    'Ruído: <span>' + (N_DOTS-nCoherent) + ' — dir aleatória/frame</span> &nbsp;|&nbsp; ' +
+    'Ruído: <span>' + (N_DOTS-nCoherent) + ' — dir fixa/vida</span> &nbsp;|&nbsp; ' +
     'campo raio: <span>' + radius + 'px</span> &nbsp;|&nbsp; ' +
     'vel: <span>' + DOT_SPEED_PS.toFixed(0) + 'px/s</span>';
 }

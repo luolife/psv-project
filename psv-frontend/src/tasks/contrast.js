@@ -46,7 +46,7 @@ const GAUSS_MASK = (() => {
   const size  = STIM_SIZE;
   const cx    = size / 2;
   const cy    = size / 2;
-  const sigma = size / 6;  // sigma padrão do PsychoPy mask="gauss"
+  const sigma = size / 5;  // ligeiramente mais largo que o padrão PsychoPy (size/6) → 5ª listra visível
   const mask  = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
