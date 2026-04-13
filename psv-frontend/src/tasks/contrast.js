@@ -46,7 +46,7 @@ const GAUSS_MASK = (() => {
   const size  = STIM_SIZE;
   const cx    = size / 2;
   const cy    = size / 2;
-  const sigma = size / 5;  // ligeiramente mais largo que o padrão PsychoPy (size/6) → 5ª listra visível
+  const sigma = size / 4;  // contorno circular mais suave nos cantos
   const mask  = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -65,8 +65,10 @@ const SINE_GRATING = (() => {
   const g    = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      // PsychoPy GratingStim: valores de -1 a +1
-      g[y * size + x] = Math.sin(2 * Math.PI * SF * x);
+      // Cosseno centrado: cos(0)=1 → pico brilhante exatamente no centro,
+      // padrão simétrico com picos em cx±20px e cx±40px (5 listras).
+      // sin(0)=0 colocaria o centro numa transição cinza → assimétrico.
+      g[y * size + x] = Math.cos(2 * Math.PI * SF * (x - size / 2));
     }
   }
   return g;

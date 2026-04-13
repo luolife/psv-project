@@ -145,7 +145,7 @@ function showTab(name, btn) {
 (function buildContrast() {
   const S  = Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
   const SF = 0.05;
-  const cx = S / 2, sigma = S / 5;
+  const cx = S / 2, sigma = S / 3.5;
 
   const GAUSS = new Float32Array(S * S);
   const SINE  = new Float32Array(S * S);
@@ -153,7 +153,7 @@ function showTab(name, btn) {
     for (let x = 0; x < S; x++) {
       const dx = x - cx, dy = y - cx;
       GAUSS[y * S + x] = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
-      SINE[y * S + x]  = Math.sin(2 * Math.PI * SF * x);
+      SINE[y * S + x]  = Math.cos(2 * Math.PI * SF * (x - cx));
     }
   }
 
