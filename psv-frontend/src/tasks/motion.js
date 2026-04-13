@@ -44,7 +44,7 @@ const N_DOTS        = 300;
 const COHERENCE     = 0.4;
 const FIELD_RADIUS  = Math.round(175 * PX_SCALE);        // field_size=(350,350)/2 → 175px @1080p
 const DOT_SIZE      = Math.max(1, Math.round(2 * PX_SCALE)); // dot_size=4px diâm → raio=2px @1080p
-const DOT_SPEED_PS  = 300 * PX_SCALE;                    // 5px/frame×60fps=300px/s, escalado
+const DOT_SPEED_PS  = 400 * PX_SCALE;                    // ~6.7px/frame@60fps, +33% vs PsychoPy original
 const DOT_LIFE_MS   = 1000;                               // dot_life=60frames × (1000ms/60fps)
 
 const LABELS = ["esquerda", "direita"];

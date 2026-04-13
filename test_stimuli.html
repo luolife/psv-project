@@ -209,7 +209,7 @@ function _randCardinal() {
 
 const PX_SCALE     = Math.min(window.innerWidth, window.innerHeight) / 1080;
 const N_DOTS       = 300;
-const DOT_SPEED_PS = 300 * PX_SCALE;                      // px/segundo
+const DOT_SPEED_PS = 400 * PX_SCALE;                      // px/segundo (+33% vs PsychoPy original)
 const DOT_LIFE_MS  = 1000;                                 // ms
 const FIELD_R      = Math.round(175 * PX_SCALE);           // raio do campo (350px diâm @1080p)
 const DOT_R        = Math.max(1, Math.round(2 * PX_SCALE)); // raio do ponto
