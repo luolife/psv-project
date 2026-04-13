@@ -195,10 +195,14 @@ function showTab(name, btn) {
 // ─────────────────────────────────────────────
 // MOTION — replica de motion.js com correções
 // ─────────────────────────────────────────────
-const N_DOTS    = 300;
-const DOT_SPEED = 5;
-const DOT_LIFE  = 60;
-const DOT_R     = Math.max(2, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.003));
+// Parâmetros direto do .py: dot_size=4(diam)→raio=2px, speed=5px/frame@60fps=300px/s,
+// dot_life=60frames=1000ms, field_size=(350,350)circle→raio=175px, tudo escalado
+const PX_SCALE     = Math.min(window.innerWidth, window.innerHeight) / 1080;
+const N_DOTS       = 300;
+const DOT_SPEED_PS = 300 * PX_SCALE;                      // px/segundo
+const DOT_LIFE_MS  = 1000;                                 // ms
+const FIELD_R      = Math.round(175 * PX_SCALE);           // raio do campo
+const DOT_R        = Math.max(1, Math.round(2 * PX_SCALE)); // raio do ponto
 
 let animId = null;
 
@@ -217,9 +221,8 @@ function restart() {
   const debug   = document.getElementById('debugChk').checked;
 
   const dpr        = window.devicePixelRatio || 1;
-  const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.48 | 0;
-  const radius     = FIELD_SIZE / 2;
-  const canvasSize = FIELD_SIZE + 40;
+  const radius     = FIELD_R;
+  const canvasSize = radius * 2 + 40;
 
   const canvas = document.getElementById('motionCanvas');
   canvas.width  = canvasSize * dpr;
@@ -231,66 +234,57 @@ function restart() {
   ctx.scale(dpr, dpr);
 
   const CX = canvasSize / 2, CY = canvasSize / 2;
-  const nCoherent = Math.round(N_DOTS * coh);   // ← usa 'coh', não 'coherence'
+  const nCoherent = Math.round(N_DOTS * coh);
 
-  // Inicializa pontos
   const dots = Array.from({ length: N_DOTS }, (_, i) => {
     const a = Math.random() * 2 * Math.PI;
     const r = Math.sqrt(Math.random()) * radius;
     return {
       x: r * Math.cos(a),
       y: r * Math.sin(a),
-      life: Math.floor(Math.random() * DOT_LIFE),
-      coherent: i < nCoherent,          // primeiros nCoherent são coerentes
-      noiseDeg: Math.random() * 360,    // usado apenas se !coherent
+      lifeMs: Math.random() * DOT_LIFE_MS,  // staggered
+      coherent: i < nCoherent,
+      noiseDeg: Math.random() * 360,
     };
   });
 
-  function frame() {
-    // fundo
+  let lastTs = null;
+
+  function frame(ts) {
+    const deltaMs = Math.min(lastTs !== null ? ts - lastTs : (1000/60), 50);
+    lastTs = ts;
+
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-    // clip circular — sem bordas quadradas
     ctx.save();
     ctx.beginPath();
     ctx.arc(CX, CY, radius, 0, Math.PI * 2);
     ctx.clip();
 
     for (const dot of dots) {
-      dot.life++;
+      dot.lifeMs += deltaMs;
 
-      // reset por dotLife
-      if (dot.life > DOT_LIFE) {
+      if (dot.lifeMs >= DOT_LIFE_MS) {
         const a = Math.random() * 2 * Math.PI;
         const r = Math.sqrt(Math.random()) * radius;
-        dot.x = r * Math.cos(a);
-        dot.y = r * Math.sin(a);
-        dot.life = 0;
+        dot.x = r * Math.cos(a); dot.y = r * Math.sin(a);
+        dot.lifeMs = 0; dot.noiseDeg = Math.random() * 360;
       } else {
-        // PsychoPy noiseDots='direction': nova direção aleatória a cada frame
         if (!dot.coherent) dot.noiseDeg = Math.random() * 360;
-
-        const deg = dot.coherent ? dirDeg : dot.noiseDeg;
-        const rad = deg * Math.PI / 180;
-        dot.x += DOT_SPEED * Math.cos(rad);
-        dot.y += DOT_SPEED * Math.sin(rad);
-
-        // saiu do campo → reinicia
+        const rad2 = (dot.coherent ? dirDeg : dot.noiseDeg) * Math.PI / 180;
+        const move = DOT_SPEED_PS * (deltaMs / 1000);
+        dot.x += move * Math.cos(rad2);
+        dot.y += move * Math.sin(rad2);
         if (dot.x * dot.x + dot.y * dot.y > radius * radius) {
           const a = Math.random() * 2 * Math.PI;
           const r = Math.sqrt(Math.random()) * radius;
-          dot.x = r * Math.cos(a);
-          dot.y = r * Math.sin(a);
-          dot.life = 0;
+          dot.x = r * Math.cos(a); dot.y = r * Math.sin(a);
+          dot.lifeMs = 0; dot.noiseDeg = Math.random() * 360;
         }
       }
 
-      // cor: modo debug → azul para coerentes, branco para ruído
-      ctx.fillStyle = debug
-        ? (dot.coherent ? '#60a5fa' : '#ffffff')
-        : '#ffffff';
-
+      ctx.fillStyle = debug ? (dot.coherent ? '#60a5fa' : '#fff') : '#fff';
       ctx.beginPath();
       ctx.arc(CX + dot.x, CY + dot.y, DOT_R, 0, Math.PI * 2);
       ctx.fill();
@@ -303,10 +297,11 @@ function restart() {
   animId = requestAnimationFrame(frame);
 
   document.getElementById('motionStat').innerHTML =
-    'DOT_R: <span>' + DOT_R + 'px raio (' + (DOT_R * 2) + 'px diâm)</span> &nbsp;|&nbsp; ' +
-    'Coerentes: <span>' + nCoherent + '/' + N_DOTS + ' (' + (coh * 100).toFixed(0) + '%)</span> &nbsp;|&nbsp; ' +
-    'Ruído: <span>' + (N_DOTS - nCoherent) + ' pontos — dir aleatória/frame</span> &nbsp;|&nbsp; ' +
-    'campo raio: <span>' + radius + 'px</span>';
+    'DOT_R: <span>' + DOT_R + 'px raio (' + (DOT_R*2) + 'px diâm)</span> &nbsp;|&nbsp; ' +
+    'Coerentes: <span>' + nCoherent + '/' + N_DOTS + ' (' + Math.round(coh*100) + '%)</span> &nbsp;|&nbsp; ' +
+    'Ruído: <span>' + (N_DOTS-nCoherent) + ' — dir aleatória/frame</span> &nbsp;|&nbsp; ' +
+    'campo raio: <span>' + radius + 'px</span> &nbsp;|&nbsp; ' +
+    'vel: <span>' + DOT_SPEED_PS.toFixed(0) + 'px/s</span>';
 }
 </script>
 </body>

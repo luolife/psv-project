@@ -26,18 +26,26 @@ const RESPONSE_WIN_MS  = 2500;
 const ISI_MS           = 800;
 const PAUSE_INTERVAL   = 40;
 
-// DotStim params — espelho do Python
-const N_DOTS       = 300;
-// Tamanho do ponto proporcional à tela — equivalente ao dotSize do PsychoPy.
-// Raio ≈ 3px @ 1920×1080, ≈ 2px @ 1280×720.
-// Coeficiente 0.003 × menor dimensão → diâmetro ≈ 6px @ 1080p (visível mas discreto).
-function calcDotSize() {
-  return Math.max(2, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.003));
-}
-const DOT_SIZE = calcDotSize();
-const DOT_SPEED    = 5;      // pixels por frame — equivalente ao PsychoPy (5px/frame @ 60fps)
-const DOT_LIFE     = 60;     // frames
-const COHERENCE    = 0.4;    // 40% dos dots coerentes
+// ---------------------------------------------------------------------------
+// Parâmetros — espelho direto do Python (Task - Motion Coherence (1).py)
+//   n_dots=300, dot_size=4 (diâmetro, pix), dot_speed=5 (px/frame @60fps)
+//   dot_life=60 (frames), field_size=(350,350) circle → raio=175px @1080p
+//   coherence=0.4, units='pix'
+//
+// Todos os valores em pixels são escalados proporcionalmente:
+//   PX_SCALE = min(w,h) / 1080  →  1.0 em 1920×1080, ~0.67 em 1280×720
+//
+// Velocidade convertida de px/frame para px/segundo para ser independente
+// de framerate (PsychoPy corre a 60Hz fixo; browsers variam 60-144Hz):
+//   300 px/s = 5px/frame × 60fps    (base a 1080p)
+// ---------------------------------------------------------------------------
+const PX_SCALE      = Math.min(window.innerWidth, window.innerHeight) / 1080;
+const N_DOTS        = 300;
+const COHERENCE     = 0.4;
+const FIELD_RADIUS  = Math.round(175 * PX_SCALE);        // field_size=(350,350)/2 → 175px @1080p
+const DOT_SIZE      = Math.max(1, Math.round(2 * PX_SCALE)); // dot_size=4px diâm → raio=2px @1080p
+const DOT_SPEED_PS  = 300 * PX_SCALE;                    // 5px/frame×60fps=300px/s, escalado
+const DOT_LIFE_MS   = 1000;                               // dot_life=60frames × (1000ms/60fps)
 
 const LABELS = ["esquerda", "direita"];
 
@@ -54,15 +62,11 @@ const LABELS = ["esquerda", "direita"];
 
 class DotStim {
   constructor(canvas, direction) {
-    this.canvas  = canvas;
-    this.ctx     = canvas.getContext("2d");
-    this.dir     = direction;   // "esquerda" | "direita"
-    this.dirDeg  = direction === "esquerda" ? 180 : 0;
-    const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
-    this.fieldSize = FIELD_SIZE;
-    this.radius  = FIELD_SIZE / 2;  // em coordenadas CSS (ctx já escalado)
-    this.dots    = [];
-    this.frame   = 0;
+    this.canvas = canvas;
+    this.ctx    = canvas.getContext("2d");
+    this.dirDeg = direction === "esquerda" ? 180 : 0;
+    this.radius = FIELD_RADIUS;
+    this.dots   = [];
     this._init();
   }
 
@@ -73,57 +77,64 @@ class DotStim {
   }
 
   _newDot(idx) {
-    // Posição aleatória dentro do campo circular
     const angle = Math.random() * 2 * Math.PI;
     const r     = Math.sqrt(Math.random()) * this.radius;
-    const isCoherent = idx < Math.round(N_DOTS * COHERENCE);
     return {
-      x:    r * Math.cos(angle),
-      y:    r * Math.sin(angle),
-      life: Math.floor(Math.random() * DOT_LIFE),
-      coherent: isCoherent,
-      // Direção aleatória para pontos incoerentes
+      x:        r * Math.cos(angle),
+      y:        r * Math.sin(angle),
+      // lifeMs escalonado aleatoriamente para evitar reinícios síncronos
+      lifeMs:   Math.random() * DOT_LIFE_MS,
+      coherent: idx < Math.round(N_DOTS * COHERENCE),
       noiseDeg: Math.random() * 360,
     };
   }
 
-  _moveDot(dot) {
-    dot.life++;
+  _moveDot(dot, deltaMs) {
+    dot.lifeMs += deltaMs;
 
-    // Reset após dotLife frames
-    if (dot.life > DOT_LIFE) {
-      const angle = Math.random() * 2 * Math.PI;
-      const r     = Math.sqrt(Math.random()) * this.radius;
-      dot.x    = r * Math.cos(angle);
-      dot.y    = r * Math.sin(angle);
-      dot.life = 0;
+    // Expirou dotLife → teleporta para posição aleatória no campo
+    if (dot.lifeMs >= DOT_LIFE_MS) {
+      const angle   = Math.random() * 2 * Math.PI;
+      const r       = Math.sqrt(Math.random()) * this.radius;
+      dot.x         = r * Math.cos(angle);
+      dot.y         = r * Math.sin(angle);
+      dot.lifeMs    = 0;
+      dot.noiseDeg  = Math.random() * 360;
       return;
     }
 
-    // PsychoPy noiseDots='direction': pontos de ruído sorteiam nova direção
-    // a CADA frame — ficam visivelmente agitados em todas as direções enquanto
-    // os coerentes derivam juntos (comportamento padrão do DotStim).
+    // noiseDots='direction' (PsychoPy default): pontos de ruído sorteiam
+    // nova direção aleatória a cada frame — random walk isotrópico.
+    // Coeficiente de difusão = (v²/2) × dt, igual ao PsychoPy independente
+    // de framerate, pois v e dt escalam inversamente.
     if (!dot.coherent) {
       dot.noiseDeg = Math.random() * 360;
     }
 
-    const moveDeg = dot.coherent ? this.dirDeg : dot.noiseDeg;
-    const moveRad = (moveDeg * Math.PI) / 180;
-    dot.x += DOT_SPEED * Math.cos(moveRad);
-    dot.y += DOT_SPEED * Math.sin(moveRad);  // Y positivo = baixo em canvas
+    const moveRad = dot.coherent
+      ? (this.dirDeg * Math.PI) / 180
+      : (dot.noiseDeg  * Math.PI) / 180;
 
-    // Se saiu do campo circular, reinicia
-    const dist = Math.sqrt(dot.x * dot.x + dot.y * dot.y);
-    if (dist > this.radius) {
+    const move = DOT_SPEED_PS * (deltaMs / 1000);  // px neste frame
+    dot.x += move * Math.cos(moveRad);
+    dot.y += move * Math.sin(moveRad);
+
+    // Saiu do campo circular → teleporta
+    if (dot.x * dot.x + dot.y * dot.y > this.radius * this.radius) {
       const angle  = Math.random() * 2 * Math.PI;
       const r      = Math.sqrt(Math.random()) * this.radius;
-      dot.x    = r * Math.cos(angle);
-      dot.y    = r * Math.sin(angle);
-      dot.life = 0;
+      dot.x        = r * Math.cos(angle);
+      dot.y        = r * Math.sin(angle);
+      dot.lifeMs   = 0;
+      dot.noiseDeg = Math.random() * 360;
     }
   }
 
-  drawFrame() {
+  // deltaMs: tempo desde o frame anterior (capped em 50ms para evitar
+  // saltos grandes se a aba ficou em background)
+  drawFrame(deltaMs) {
+    const dt = Math.min(deltaMs, 50);
+
     const { canvas, ctx, radius } = this;
     const dpr  = window.devicePixelRatio || 1;
     const cssW = canvas.width  / dpr;
@@ -131,26 +142,22 @@ class DotStim {
     const cx   = cssW / 2;
     const cy   = cssH / 2;
 
-    // Fundo preto completo
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, cssW, cssH);
 
-    // Clip circular perfeito
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // Pontos como círculos brancos
     ctx.fillStyle = "#fff";
     for (const dot of this.dots) {
-      this._moveDot(dot);
+      this._moveDot(dot, dt);
       ctx.beginPath();
       ctx.arc(cx + dot.x, cy + dot.y, DOT_SIZE, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
-    this.frame++;
   }
 }
 
@@ -162,13 +169,12 @@ function presentDots(container, direction, durationMs) {
     clearContainer(container);
     container.style.position = "relative";
 
-    const dpr      = window.devicePixelRatio || 1;
-    const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.50 | 0;
-    const size     = FIELD_SIZE + 40;
+    const dpr  = window.devicePixelRatio || 1;
+    const size = FIELD_RADIUS * 2 + 40;   // campo (350px @1080p) + margem
 
-    const canvas   = document.createElement("canvas");
-    canvas.width   = size * dpr;
-    canvas.height  = size * dpr;
+    const canvas = document.createElement("canvas");
+    canvas.width  = size * dpr;
+    canvas.height = size * dpr;
     canvas.style.cssText = `
       width: ${size}px; height: ${size}px;
       position: absolute; left: 50%; top: 50%;
@@ -179,14 +185,17 @@ function presentDots(container, direction, durationMs) {
     ctx.scale(dpr, dpr);
     container.appendChild(canvas);
 
-    const stim = new DotStim(canvas, direction);
-    const t0   = performance.now();
-    let animId = null;
+    const stim  = new DotStim(canvas, direction);
+    const t0    = performance.now();
+    let animId  = null;
+    let lastTs  = null;
 
-    // Frame-based: cada chamada do loop = 1 frame = DOT_SPEED pixels
-    // Equivalente exato ao PsychoPy (5px/frame @ 60fps)
-    const loop = () => {
-      stim.drawFrame();
+    // Loop time-based: passa deltaMs para o DotStim normalizar velocidade
+    // independentemente do framerate do display (60/120/144Hz)
+    const loop = (ts) => {
+      const deltaMs = lastTs !== null ? ts - lastTs : (1000 / 60);
+      lastTs = ts;
+      stim.drawFrame(deltaMs);
       if (performance.now() - t0 < durationMs) {
         animId = requestAnimationFrame(loop);
       } else {
