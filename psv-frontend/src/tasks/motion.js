@@ -28,12 +28,11 @@ const PAUSE_INTERVAL   = 40;
 
 // DotStim params — espelho do Python
 const N_DOTS       = 300;
-// Tamanho do ponto proporcional à tela (~5% largura, ~8% altura → média)
-// Calculado uma vez por task no momento que roda
+// Tamanho do ponto proporcional à tela — equivalente ao dotSize do PsychoPy.
+// Raio ≈ 3px @ 1920×1080, ≈ 2px @ 1280×720.
+// Coeficiente 0.003 × menor dimensão → diâmetro ≈ 6px @ 1080p (visível mas discreto).
 function calcDotSize() {
-  const w = window.innerWidth  * 0.05;
-  const h = window.innerHeight * 0.08;
-  return Math.max(2, Math.round((w + h) / 2));
+  return Math.max(2, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.003));
 }
 const DOT_SIZE = calcDotSize();
 const DOT_SPEED    = 5;      // pixels por frame — equivalente ao PsychoPy (5px/frame @ 60fps)
@@ -98,8 +97,14 @@ class DotStim {
       dot.x    = r * Math.cos(angle);
       dot.y    = r * Math.sin(angle);
       dot.life = 0;
-      dot.noiseDeg = Math.random() * 360;
       return;
+    }
+
+    // PsychoPy noiseDots='direction': pontos de ruído sorteiam nova direção
+    // a CADA frame — ficam visivelmente agitados em todas as direções enquanto
+    // os coerentes derivam juntos (comportamento padrão do DotStim).
+    if (!dot.coherent) {
+      dot.noiseDeg = Math.random() * 360;
     }
 
     const moveDeg = dot.coherent ? this.dirDeg : dot.noiseDeg;
@@ -115,7 +120,6 @@ class DotStim {
       dot.x    = r * Math.cos(angle);
       dot.y    = r * Math.sin(angle);
       dot.life = 0;
-      dot.noiseDeg = Math.random() * 360;
     }
   }
 

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>PSV — Teste Visual dos Estímulos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #111; color: #ccc; font-family: monospace; }
+
+    header {
+      padding: 14px 24px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex; align-items: center; gap: 16px;
+    }
+    header h1 { font-size: .95rem; color: #fff; }
+    .tabs { display: flex; gap: 8px; margin-left: auto; }
+    .tab {
+      padding: 6px 16px; border-radius: 4px; cursor: pointer;
+      background: #2a2a2a; border: none; color: #888;
+      font-family: monospace; font-size: .82rem;
+    }
+    .tab.active { background: #4f46e5; color: #fff; }
+
+    .panel { display: none; padding: 20px 24px; }
+    .panel.active { display: block; }
+
+    .note {
+      padding: 10px 14px; background: #1c1c1c;
+      border-left: 3px solid #4f46e5;
+      font-size: .78rem; color: #888; line-height: 1.7; margin-bottom: 16px;
+    }
+    .note code { color: #7dd3fc; }
+
+    /* ── CONTRAST ── */
+    .cg { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .ci { text-align: center; }
+    .ci canvas { display: block; margin: 0 auto 6px;
+      background: #000; border: 1px solid #2a2a2a; image-rendering: pixelated; }
+    .ci span { font-size: .72rem; color: #666; }
+
+    /* ── MOTION ── */
+    .ctrl {
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+      margin-bottom: 16px; background: #1a1a1a; padding: 10px 14px;
+      border-radius: 6px;
+    }
+    .ctrl label { font-size: .8rem; color: #999; display: flex; align-items: center; gap: 6px; }
+    .ctrl select {
+      background: #222; border: 1px solid #333; color: #ccc;
+      padding: 3px 8px; border-radius: 4px; font-family: monospace;
+    }
+    .ctrl input[type=range] { width: 110px; accent-color: #4f46e5; }
+    .ctrl input[type=checkbox] { accent-color: #4f46e5; width: 14px; height: 14px; cursor: pointer; }
+    .val { color: #7dd3fc; font-weight: bold; min-width: 2.5ch; display: inline-block; }
+    .btn {
+      padding: 6px 18px; border-radius: 4px; cursor: pointer;
+      background: #4f46e5; border: none; color: #fff;
+      font-family: monospace; font-size: .82rem;
+    }
+    .btn:hover { background: #4338ca; }
+
+    #motionWrap { display: flex; justify-content: center; }
+    #motionCanvas { display: block; background: #000; }
+
+    .stat {
+      margin-top: 12px; font-size: .75rem; color: #555;
+      display: flex; gap: 20px; flex-wrap: wrap; padding: 6px 2px;
+    }
+    .stat span { color: #4f46e5; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>PSV — Teste Visual dos Estímulos</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('contrast', this)">Contraste (GratingStim)</button>
+    <button class="tab"        onclick="showTab('motion',   this)">Motion Coherence (DotStim)</button>
+  </div>
+</header>
+
+<!-- ═══════════════ CONTRASTE ═══════════════ -->
+<div class="panel active" id="panel-contrast">
+  <div class="note">
+    Equivalente: <code>GratingStim(tex="sin", mask="gauss", sf=0.05, opacity=contrast, size=100)</code><br>
+    Circular • ~5 listras @ 1080p • máscara gaussiana fixa (sigma=size/6) • só a <em>opacity</em> varia entre trials
+  </div>
+  <div class="cg" id="contrastGrid"></div>
+  <div id="contrastInfo" class="note" style="margin-top:16px"></div>
+</div>
+
+<!-- ═══════════════ MOTION ═══════════════ -->
+<div class="panel" id="panel-motion">
+  <div class="note">
+    Equivalente: <code>DotStim(nDots=300, speed=5px/frame, noiseDots='direction')</code><br>
+    • Pontos <strong>coerentes</strong>: mesma direção o trial todo &nbsp;|&nbsp;
+      Pontos de <strong>ruído</strong>: direção aleatória a <em>cada frame</em> (PsychoPy default)<br>
+    • Campo circular com clip — sem bordas quadradas
+  </div>
+
+  <div class="ctrl">
+    <label>Direção
+      <select id="dirSel" onchange="restart()">
+        <option value="180">← Esquerda</option>
+        <option value="0">→ Direita</option>
+      </select>
+    </label>
+
+    <label>Coerência
+      <input type="range" id="cohSlider" min="0" max="1" step="0.05" value="0.4"
+             oninput="document.getElementById('cohVal').textContent=
+                      parseFloat(this.value).toFixed(2); restart()">
+      <span class="val" id="cohVal">0.40</span>
+    </label>
+
+    <label style="gap:8px">
+      <input type="checkbox" id="debugChk" onchange="restart()">
+      Debug (azul=coerente)
+    </label>
+
+    <button class="btn" onclick="restart()">▶ Reiniciar</button>
+  </div>
+
+  <div id="motionWrap"><canvas id="motionCanvas"></canvas></div>
+  <div class="stat" id="motionStat"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// TAB
+// ─────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'motion') restart();
+  if (name === 'contrast') stopMotion();
+}
+
+// ─────────────────────────────────────────────
+// CONTRAST — replica exata de contrast.js
+// ─────────────────────────────────────────────
+(function buildContrast() {
+  const S  = Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
+  const SF = 0.05;
+  const cx = S / 2, sigma = S / 6;
+
+  const GAUSS = new Float32Array(S * S);
+  const SINE  = new Float32Array(S * S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const dx = x - cx, dy = y - cx;
+      GAUSS[y * S + x] = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+      SINE[y * S + x]  = Math.sin(2 * Math.PI * SF * x);
+    }
+  }
+
+  function makeCanvas(contrast) {
+    const cv  = document.createElement('canvas');
+    cv.width  = cv.height = S;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(S, S);
+    const d   = img.data;
+    for (let i = 0; i < S * S; i++) {
+      const rgb = Math.round((SINE[i] + 1) / 2 * 255);
+      const a   = Math.round(GAUSS[i] * contrast * 255);
+      d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = rgb;
+      d[i * 4 + 3] = a;
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv;
+  }
+
+  const grid = document.getElementById('contrastGrid');
+  [[0.05, 'mín trial'], [0.08, ''], [0.16, ''], [0.32, ''], [0.64, ''], [1.0, 'máximo']].forEach(([c, lb]) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ci';
+    wrap.appendChild(makeCanvas(c));
+    const lbl = document.createElement('span');
+    lbl.textContent = 'opacity=' + c + (lb ? ' (' + lb + ')' : '');
+    wrap.appendChild(lbl);
+    grid.appendChild(wrap);
+  });
+
+  document.getElementById('contrastInfo').innerHTML =
+    'Tela detectada: <code>' + window.innerWidth + '×' + window.innerHeight + 'px</code> &nbsp;|&nbsp; ' +
+    'STIM_SIZE: <code>' + S + 'px</code> &nbsp;|&nbsp; ' +
+    'ciclos: <code>' + (SF * S).toFixed(1) + '</code> &nbsp;|&nbsp; ' +
+    'sigma: <code>' + sigma.toFixed(1) + 'px</code> &nbsp;|&nbsp; ' +
+    '(@ 1920×1080 → <code>100px / 5.0 ciclos</code>)';
+})();
+
+// ─────────────────────────────────────────────
+// MOTION — replica de motion.js com correções
+// ─────────────────────────────────────────────
+const N_DOTS    = 300;
+const DOT_SPEED = 5;
+const DOT_LIFE  = 60;
+const DOT_R     = Math.max(2, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.003));
+
+let animId = null;
+
+function stopMotion() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+}
+
+function restart() {
+  stopMotion();
+
+  // só roda se o painel estiver visível
+  if (!document.getElementById('panel-motion').classList.contains('active')) return;
+
+  const dirDeg  = parseInt(document.getElementById('dirSel').value);
+  const coh     = parseFloat(document.getElementById('cohSlider').value);   // ← variável correta
+  const debug   = document.getElementById('debugChk').checked;
+
+  const dpr        = window.devicePixelRatio || 1;
+  const FIELD_SIZE = Math.min(window.innerWidth, window.innerHeight) * 0.48 | 0;
+  const radius     = FIELD_SIZE / 2;
+  const canvasSize = FIELD_SIZE + 40;
+
+  const canvas = document.getElementById('motionCanvas');
+  canvas.width  = canvasSize * dpr;
+  canvas.height = canvasSize * dpr;
+  canvas.style.width  = canvasSize + 'px';
+  canvas.style.height = canvasSize + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const CX = canvasSize / 2, CY = canvasSize / 2;
+  const nCoherent = Math.round(N_DOTS * coh);   // ← usa 'coh', não 'coherence'
+
+  // Inicializa pontos
+  const dots = Array.from({ length: N_DOTS }, (_, i) => {
+    const a = Math.random() * 2 * Math.PI;
+    const r = Math.sqrt(Math.random()) * radius;
+    return {
+      x: r * Math.cos(a),
+      y: r * Math.sin(a),
+      life: Math.floor(Math.random() * DOT_LIFE),
+      coherent: i < nCoherent,          // primeiros nCoherent são coerentes
+      noiseDeg: Math.random() * 360,    // usado apenas se !coherent
+    };
+  });
+
+  function frame() {
+    // fundo
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    // clip circular — sem bordas quadradas
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CX, CY, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    for (const dot of dots) {
+      dot.life++;
+
+      // reset por dotLife
+      if (dot.life > DOT_LIFE) {
+        const a = Math.random() * 2 * Math.PI;
+        const r = Math.sqrt(Math.random()) * radius;
+        dot.x = r * Math.cos(a);
+        dot.y = r * Math.sin(a);
+        dot.life = 0;
+      } else {
+        // PsychoPy noiseDots='direction': nova direção aleatória a cada frame
+        if (!dot.coherent) dot.noiseDeg = Math.random() * 360;
+
+        const deg = dot.coherent ? dirDeg : dot.noiseDeg;
+        const rad = deg * Math.PI / 180;
+        dot.x += DOT_SPEED * Math.cos(rad);
+        dot.y += DOT_SPEED * Math.sin(rad);
+
+        // saiu do campo → reinicia
+        if (dot.x * dot.x + dot.y * dot.y > radius * radius) {
+          const a = Math.random() * 2 * Math.PI;
+          const r = Math.sqrt(Math.random()) * radius;
+          dot.x = r * Math.cos(a);
+          dot.y = r * Math.sin(a);
+          dot.life = 0;
+        }
+      }
+
+      // cor: modo debug → azul para coerentes, branco para ruído
+      ctx.fillStyle = debug
+        ? (dot.coherent ? '#60a5fa' : '#ffffff')
+        : '#ffffff';
+
+      ctx.beginPath();
+      ctx.arc(CX + dot.x, CY + dot.y, DOT_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+    animId = requestAnimationFrame(frame);
+  }
+
+  animId = requestAnimationFrame(frame);
+
+  document.getElementById('motionStat').innerHTML =
+    'DOT_R: <span>' + DOT_R + 'px raio (' + (DOT_R * 2) + 'px diâm)</span> &nbsp;|&nbsp; ' +
+    'Coerentes: <span>' + nCoherent + '/' + N_DOTS + ' (' + (coh * 100).toFixed(0) + '%)</span> &nbsp;|&nbsp; ' +
+    'Ruído: <span>' + (N_DOTS - nCoherent) + ' pontos — dir aleatória/frame</span> &nbsp;|&nbsp; ' +
+    'campo raio: <span>' + radius + 'px</span>';
+}
+</script>
+</body>
+</html>
