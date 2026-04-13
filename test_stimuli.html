@@ -230,18 +230,16 @@ function restart() {
   const coh     = parseFloat(document.getElementById('cohSlider').value);   // ← variável correta
   const debug   = document.getElementById('debugChk').checked;
 
-  const dpr        = window.devicePixelRatio || 1;
   const radius     = FIELD_R;
   const canvasSize = radius * 2 + 40;
 
   const canvas = document.getElementById('motionCanvas');
-  canvas.width  = canvasSize * dpr;
-  canvas.height = canvasSize * dpr;
+  canvas.width  = canvasSize;
+  canvas.height = canvasSize;
   canvas.style.width  = canvasSize + 'px';
   canvas.style.height = canvasSize + 'px';
 
   const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
 
   const CX = canvasSize / 2, CY = canvasSize / 2;
   const nCoherent = Math.round(N_DOTS * coh);
@@ -264,12 +262,8 @@ function restart() {
     const deltaMs = Math.min(lastTs !== null ? ts - lastTs : (1000/60), 50);
     lastTs = ts;
 
-    // Limpa usando dimensões físicas reais — evita rastro em telas retina (DPR > 1)
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
 
     ctx.save();
     ctx.beginPath();

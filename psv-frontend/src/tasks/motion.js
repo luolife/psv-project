@@ -143,20 +143,12 @@ class DotStim {
     const dt = Math.min(deltaMs, 50);
 
     const { canvas, ctx, radius } = this;
-    const dpr  = window.devicePixelRatio || 1;
-    const cssW = canvas.width  / dpr;
-    const cssH = canvas.height / dpr;
-    const cx   = cssW / 2;
-    const cy   = cssH / 2;
+    const cx = canvas.width  / 2;
+    const cy = canvas.height / 2;
 
-    // Limpa o canvas usando as dimensões físicas reais (sem transform DPR).
-    // fillRect com cssW/cssH só cobre 1/dpr² dos pixels em telas retina,
-    // deixando rastro dos frames anteriores nos pixels restantes.
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Limpa o canvas inteiro — sem transform, coordenadas físicas diretas.
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
 
     ctx.save();
     ctx.beginPath();
@@ -186,16 +178,15 @@ function presentDots(container, direction, durationMs) {
     const size = FIELD_RADIUS * 2 + 40;   // campo (350px @1080p) + margem
 
     const canvas = document.createElement("canvas");
-    canvas.width  = size * dpr;
-    canvas.height = size * dpr;
+    canvas.width  = size;
+    canvas.height = size;
     canvas.style.cssText = `
       width: ${size}px; height: ${size}px;
       position: absolute; left: 50%; top: 50%;
       transform: translate(-50%, -50%);
-      border: none; outline: none; background: #000;
+      border: none; outline: none;
     `;
     const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
     container.appendChild(canvas);
 
     const stim  = new DotStim(canvas, direction);
