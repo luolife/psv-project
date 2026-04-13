@@ -256,11 +256,14 @@ function restart() {
     };
   });
 
-  let lastTs = null;
+  const FRAME_MS = 1000 / 60;
+  let lastRender = null;
 
   function frame(ts) {
-    const deltaMs = Math.min(lastTs !== null ? ts - lastTs : (1000/60), 50);
-    lastTs = ts;
+    const elapsed = lastRender !== null ? ts - lastRender : FRAME_MS;
+    if (elapsed < FRAME_MS) { animId = requestAnimationFrame(frame); return; }
+    const deltaMs = Math.min(elapsed, 50);
+    lastRender = ts - (elapsed % FRAME_MS);
 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);

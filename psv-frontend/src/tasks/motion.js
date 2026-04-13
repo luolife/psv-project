@@ -195,11 +195,20 @@ function presentDots(container, direction, durationMs) {
     let lastTs  = null;
 
     // Loop time-based: passa deltaMs para o DotStim normalizar velocidade
-    // independentemente do framerate do display (60/120/144Hz)
+    // Throttle a 60fps fixo — em monitores de 120/144Hz o rAF dispara mais vezes,
+    // mas só renderizamos a cada ~16.67ms. Isso garante que o passo por frame
+    // é sempre o mesmo (6.7px @400px/s), evitando rastro em displays de alta taxa.
+    const FRAME_MS = 1000 / 60;
+    let lastRender = null;
+
     const loop = (ts) => {
-      const deltaMs = lastTs !== null ? ts - lastTs : (1000 / 60);
-      lastTs = ts;
-      stim.drawFrame(deltaMs);
+      const elapsed = lastRender !== null ? ts - lastRender : FRAME_MS;
+
+      if (elapsed >= FRAME_MS) {
+        stim.drawFrame(Math.min(elapsed, 50));
+        lastRender = ts - (elapsed % FRAME_MS); // mantém alinhamento ao grid de 60fps
+      }
+
       if (performance.now() - t0 < durationMs) {
         animId = requestAnimationFrame(loop);
       } else {
