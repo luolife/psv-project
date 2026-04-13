@@ -145,7 +145,7 @@ function showTab(name, btn) {
 (function buildContrast() {
   const S  = Math.round(Math.min(window.innerWidth, window.innerHeight) * (100 / 1080));
   const SF = 0.05;
-  const cx = S / 2, sigma = S / 3.5;
+  const cx = S / 2, sigma = S / 4;
 
   const GAUSS = new Float32Array(S * S);
   const SINE  = new Float32Array(S * S);
@@ -174,7 +174,7 @@ function showTab(name, btn) {
   }
 
   const grid = document.getElementById('contrastGrid');
-  [[0.05, 'mín trial'], [0.08, ''], [0.16, ''], [0.32, ''], [0.64, ''], [1.0, 'máximo']].forEach(([c, lb]) => {
+  [[0.08, 'mín trial'], [0.16, ''], [0.24, ''], [0.32, ''], [0.64, ''], [1.0, 'máximo']].forEach(([c, lb]) => {
     const wrap = document.createElement('div');
     wrap.className = 'ci';
     wrap.appendChild(makeCanvas(c));
@@ -197,16 +197,21 @@ function showTab(name, btn) {
 // ─────────────────────────────────────────────
 // Parâmetros direto do .py: dot_size=4(diam)→raio=2px, speed=5px/frame@60fps=300px/s,
 // dot_life=60frames=1000ms, field_size=(350,350)circle→raio=175px, tudo escalado
-// Sorteia uma das 4 direções cardinais — ruído só horizontal ou vertical
+// Ruído majoritariamente vertical, fração pequena horizontal
+const NOISE_HORIZ_RATIO = 0.15;
+
 function _randCardinal() {
-  return [0, 90, 180, 270][Math.floor(Math.random() * 4)];
+  if (Math.random() < NOISE_HORIZ_RATIO) {
+    return Math.random() < 0.5 ? 0 : 180;
+  }
+  return Math.random() < 0.5 ? 90 : 270;
 }
 
 const PX_SCALE     = Math.min(window.innerWidth, window.innerHeight) / 1080;
 const N_DOTS       = 300;
 const DOT_SPEED_PS = 300 * PX_SCALE;                      // px/segundo
 const DOT_LIFE_MS  = 1000;                                 // ms
-const FIELD_R      = Math.round(175 * PX_SCALE);           // raio do campo
+const FIELD_R      = Math.round(50 * PX_SCALE);            // mesmo diâmetro do gabor (100px @1080p)
 const DOT_R        = Math.max(1, Math.round(2 * PX_SCALE)); // raio do ponto
 
 let animId = null;

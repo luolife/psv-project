@@ -42,17 +42,23 @@ const PAUSE_INTERVAL   = 40;
 const PX_SCALE      = Math.min(window.innerWidth, window.innerHeight) / 1080;
 const N_DOTS        = 300;
 const COHERENCE     = 0.4;
-const FIELD_RADIUS  = Math.round(175 * PX_SCALE);        // field_size=(350,350)/2 → 175px @1080p
+const FIELD_RADIUS  = Math.round(50 * PX_SCALE);         // mesmo diâmetro do gabor (100px @1080p)
 const DOT_SIZE      = Math.max(1, Math.round(2 * PX_SCALE)); // dot_size=4px diâm → raio=2px @1080p
 const DOT_SPEED_PS  = 300 * PX_SCALE;                    // 5px/frame×60fps=300px/s, escalado
 const DOT_LIFE_MS   = 1000;                               // dot_life=60frames × (1000ms/60fps)
 
 const LABELS = ["esquerda", "direita"];
 
-// Sorteia uma das 4 direções cardinais (0°, 90°, 180°, 270°).
-// Garante que o ruído se mova apenas horizontal ou verticalmente.
+// Ruído majoritariamente vertical (cima/baixo), com uma fração pequena horizontal.
+// NOISE_HORIZ_RATIO=0.15 → 15% do ruído vai esq/dir, 85% vai cima/baixo.
+// Isso cria ambiguidade sutil sem o efeito de "mts pontos dos dois lados ao mesmo tempo".
+const NOISE_HORIZ_RATIO = 0.15;
+
 function _randCardinal() {
-  return [0, 90, 180, 270][Math.floor(Math.random() * 4)];
+  if (Math.random() < NOISE_HORIZ_RATIO) {
+    return Math.random() < 0.5 ? 0 : 180;   // esquerda ou direita (minoria)
+  }
+  return Math.random() < 0.5 ? 90 : 270;    // cima ou baixo (maioria)
 }
 
 // ---------------------------------------------------------------------------
