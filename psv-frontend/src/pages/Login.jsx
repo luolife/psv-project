@@ -47,7 +47,6 @@ export default function Login() {
               name="email"
               value={form.email}
               onChange={handle}
-              placeholder="seu@email.com"
               required
             />
           </div>
@@ -60,7 +59,6 @@ export default function Login() {
               name="password"
               value={form.password}
               onChange={handle}
-              placeholder="••••••••"
               required
             />
           </div>

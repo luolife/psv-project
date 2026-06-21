@@ -1,8 +1,9 @@
 """
 PSV — Router: Auth
-POST /auth/register   → cadastro do profissional
-POST /auth/login      → retorna JWT
-GET  /auth/me         → dados do profissional logado
+POST  /auth/register  → cadastro do profissional
+POST  /auth/login     → retorna JWT
+GET   /auth/me        → dados do profissional logado
+PATCH /auth/me        → atualiza perfil do profissional logado
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +16,7 @@ from auth import (
 from database import get_db
 from models import Professional
 from schemas import (
-    ProfessionalCreate, ProfessionalRead,
+    ProfessionalCreate, ProfessionalRead, ProfessionalUpdate,
     LoginRequest, TokenResponse,
 )
 
@@ -70,4 +71,36 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=ProfessionalRead)
 def me(current: Professional = Depends(get_current_professional)):
+    return current
+
+
+@router.patch("/me", response_model=ProfessionalRead)
+def update_me(
+    payload: ProfessionalUpdate,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    # Se e-mail foi alterado, verifica duplicata
+    if payload.email and payload.email != current.email:
+        conflict = db.query(Professional).filter(
+            Professional.email == payload.email,
+            Professional.id != current.id,
+        ).first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="E-mail já está em uso por outra conta",
+            )
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # Trata senha separadamente
+    if "password" in update_data:
+        current.hashed_password = hash_password(update_data.pop("password"))
+
+    for field, value in update_data.items():
+        setattr(current, field, value)
+
+    db.commit()
+    db.refresh(current)
     return current

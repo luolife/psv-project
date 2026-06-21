@@ -37,6 +37,8 @@ export const authApi = {
     api.post("/auth/register", data).then((r) => r.data),
   me: () =>
     api.get("/auth/me").then((r) => r.data),
+  updateProfile: (data) =>
+    api.patch("/auth/me", data).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

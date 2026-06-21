@@ -148,22 +148,41 @@ def submit_checklist(
             detail="Checklist já foi submetido para esta sessão",
         )
 
-    # Cálculo via core — valida e calcula scores
-    try:
-        result = calculate_scores(payload.responses)
-    except ChecklistValidationError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-
-    checklist = ChecklistResult(
-        session_id=session_id,
-        hev_score=result.hev.normalized_score,
-        hov_score=result.hov.normalized_score,
-        bsv_score=result.bsv.normalized_score,
-        hev_level=result.hev.level.value,
-        hov_level=result.hov.level.value,
-        bsv_level=result.bsv.level.value,
-        raw_responses=payload.responses,
+    # Detecta se é triagem visual (valores não são todos inteiros 0-4)
+    is_visual_screening = any(
+        not isinstance(v, int) or v not in range(5)
+        for v in payload.responses.values()
     )
+
+    if is_visual_screening:
+        # Triagem Visual — salva respostas brutas sem calcular scores de domínio
+        checklist = ChecklistResult(
+            session_id=session_id,
+            hev_score=0.0,
+            hov_score=0.0,
+            bsv_score=0.0,
+            hev_level="N/A",
+            hov_level="N/A",
+            bsv_level="N/A",
+            raw_responses=payload.responses,
+        )
+    else:
+        # Checklist clássico — valida e calcula scores de domínio
+        try:
+            result = calculate_scores(payload.responses)
+        except ChecklistValidationError as e:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+        checklist = ChecklistResult(
+            session_id=session_id,
+            hev_score=result.hev.normalized_score,
+            hov_score=result.hov.normalized_score,
+            bsv_score=result.bsv.normalized_score,
+            hev_level=result.hev.level.value,
+            hov_level=result.hov.level.value,
+            bsv_level=result.bsv.level.value,
+            raw_responses=payload.responses,
+        )
     db.add(checklist)
     db.commit()
     db.refresh(checklist)

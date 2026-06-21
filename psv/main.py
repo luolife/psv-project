@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from config import settings
-from database import create_tables
+from database import create_tables, engine
 from routers import auth, participants, sessions, reports
 
 app = FastAPI(
@@ -62,6 +62,27 @@ if os.path.isdir(STATIC_DIR):
 @app.on_event("startup")
 def startup():
     create_tables()
+    _run_migrations()
+
+
+def _run_migrations():
+    """Aplica migrações de schema incrementais de forma idempotente."""
+    from sqlalchemy import text, inspect as sa_inspect
+    COLS_TO_ADD = [
+        ("professionals", "city",  "ALTER TABLE professionals ADD COLUMN city VARCHAR(100)"),
+        ("professionals", "state", "ALTER TABLE professionals ADD COLUMN state VARCHAR(50)"),
+    ]
+    try:
+        with engine.begin() as conn:
+            inspector = sa_inspect(conn)
+            for table, col, ddl in COLS_TO_ADD:
+                existing = [c["name"] for c in inspector.get_columns(table)]
+                if col not in existing:
+                    conn.execute(text(ddl))
+    except Exception as e:
+        # Não deixa falha na migração impedir o startup
+        import logging
+        logging.getLogger("psv").warning(f"Migration warning: {e}")
 
 
 @app.get("/health", tags=["infra"])

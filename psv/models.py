@@ -56,6 +56,8 @@ class Professional(Base):
     area             = Column(String(200), nullable=True)   # área de atuação
     titulation       = Column(String(100), nullable=True)   # titulação
     institution      = Column(String(200), nullable=True)   # instituição
+    city             = Column(String(100), nullable=True)
+    state            = Column(String(50),  nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active        = Column(Integer, default=1, nullable=False)
 

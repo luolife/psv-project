@@ -61,9 +61,32 @@ class ProfessionalRead(BaseModel):
     area: Optional[str] = None
     titulation: Optional[str] = None
     institution: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProfessionalUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    profession: Optional[str] = None
+    council: Optional[str] = None
+    council_register: Optional[str] = None
+    area: Optional[str] = None
+    titulation: Optional[str] = None
+    institution: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) < 8:
+            raise ValueError("Senha deve ter no mínimo 8 caracteres")
+        return v
 
 
 # ---------------------------------------------------------------------------
@@ -148,8 +171,8 @@ class SessionStatusUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ChecklistSubmit(BaseModel):
-    """Respostas brutas do checklist: {item_number: score 0-4}"""
-    responses: Dict[int, int]
+    """Respostas brutas do checklist ou triagem visual: {item_number: valor}"""
+    responses: Dict[int, Any]
 
 
 class DomainResultRead(BaseModel):

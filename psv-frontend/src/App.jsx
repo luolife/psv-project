@@ -9,6 +9,7 @@ import NewSession   from "./pages/NewSession";
 import Checklist    from "./pages/Checklist";
 import TaskRunner   from "./pages/TaskRunner";
 import Results      from "./pages/Results";
+import EditProfile  from "./pages/EditProfile";
 
 function PrivateRoute({ children }) {
   const { professional, loading } = useAuth();
@@ -40,6 +41,9 @@ export default function App() {
           } />
           <Route path="/sessions/:sessionId/results" element={
             <PrivateRoute><Results /></PrivateRoute>
+          } />
+          <Route path="/profile" element={
+            <PrivateRoute><EditProfile /></PrivateRoute>
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />

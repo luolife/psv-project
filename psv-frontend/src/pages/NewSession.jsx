@@ -16,20 +16,22 @@ function calcAge(birthdate) {
 }
 
 function Stepper() {
+  const steps = [
+    { n: 1, label: "Participante",  active: true  },
+    { n: 2, label: "Triagem Visual", active: false },
+    { n: 3, label: "Recomendações", active: false },
+    { n: 4, label: "Tarefas",       active: false },
+    { n: 5, label: "Resultados",    active: false },
+  ];
   return (
     <div className="stepper">
-      {[
-        { n: 1, label: "Participante", active: true  },
-        { n: 2, label: "Check-list",   active: false },
-        { n: 3, label: "Tarefas",      active: false },
-        { n: 4, label: "Resultados",   active: false },
-      ].map((s, i, arr) => (
+      {steps.map((s, i) => (
         <div key={s.n} className="stepper__step">
           <div className={`stepper__dot ${s.active ? "stepper__dot--active" : "stepper__dot--pending"}`}>
             {s.n}
           </div>
           <span className="stepper__label">{s.label}</span>
-          {i < arr.length - 1 && <div className="stepper__line" />}
+          {i < steps.length - 1 && <div className="stepper__line" />}
         </div>
       ))}
     </div>
@@ -178,7 +180,7 @@ function NewParticipantForm({ onCreated, onBack, loading, error }) {
         <div className="form-group">
           <label className="form-label">Nome completo</label>
           <input className="form-input" name="name" value={form.name}
-            onChange={handle} placeholder="Nome completo do participante" required autoFocus />
+            onChange={handle} required autoFocus />
         </div>
 
         <div className="form-row">
@@ -201,7 +203,7 @@ function NewParticipantForm({ onCreated, onBack, loading, error }) {
         <div className="form-group">
           <label className="form-label">Diagnóstico (CID) <span className="text-muted text-small">— opcional</span></label>
           <input className="form-input" name="diagnosis_cid" value={form.diagnosis_cid}
-            onChange={handle} placeholder="ex: F84.0, F90.0" />
+            onChange={handle} />
           <span className="form-hint">CID-10 ou CID-11</span>
         </div>
 
@@ -209,26 +211,25 @@ function NewParticipantForm({ onCreated, onBack, loading, error }) {
           <div className="form-group">
             <label className="form-label">Cidade <span className="text-muted text-small">— opcional</span></label>
             <input className="form-input" name="city" value={form.city}
-              onChange={handle} placeholder="São Paulo" />
+              onChange={handle} />
           </div>
           <div className="form-group">
             <label className="form-label">Estado <span className="text-muted text-small">— opcional</span></label>
             <input className="form-input" name="state" value={form.state}
-              onChange={handle} placeholder="SP" maxLength={50} />
+              onChange={handle} maxLength={50} />
           </div>
         </div>
 
         <div className="form-group">
           <label className="form-label">País</label>
           <input className="form-input" name="country" value={form.country}
-            onChange={handle} placeholder="Brasil" />
+            onChange={handle} />
         </div>
 
         <div className="form-group">
           <label className="form-label">Observações <span className="text-muted text-small">— opcional</span></label>
           <textarea className="form-input" name="notes" value={form.notes}
             onChange={handle} rows={3}
-            placeholder="Informações relevantes para a avaliação..."
             style={{ resize: "vertical" }} />
         </div>
 

@@ -32,8 +32,14 @@ export function AuthProvider({ children }) {
     setProfessional(null);
   };
 
+  const updateProfile = async (data) => {
+    const updated = await authApi.updateProfile(data);
+    setProfessional(updated);
+    return updated;
+  };
+
   return (
-    <AuthContext.Provider value={{ professional, loading, login, logout }}>
+    <AuthContext.Provider value={{ professional, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
