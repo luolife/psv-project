@@ -10,14 +10,19 @@ Rodar em produção:
     uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
 """
 
+import logging
+import time
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
 
 from config import settings
 from database import create_tables, engine
 from routers import auth, participants, sessions, reports
+
+logger = logging.getLogger("psv")
 
 app = FastAPI(
     title=settings.app_name,
@@ -61,8 +66,34 @@ if os.path.isdir(STATIC_DIR):
 
 @app.on_event("startup")
 def startup():
-    create_tables()
+    _create_tables_with_retry()
     _run_migrations()
+
+
+def _create_tables_with_retry(max_attempts: int = 10, delay: float = 3.0) -> None:
+    """
+    Tenta criar as tabelas com retry progressivo.
+    Evita crash loop quando o banco está temporariamente indisponível no Railway.
+    Espera: 3s, 6s, 9s, ... até 30s por tentativa.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            create_tables()
+            logger.info("Tabelas criadas/verificadas com sucesso.")
+            return
+        except Exception as e:
+            wait = min(delay * attempt, 30.0)
+            logger.warning(
+                f"Tentativa {attempt}/{max_attempts} de conectar ao banco falhou: {e}. "
+                f"Aguardando {wait:.0f}s..."
+            )
+            if attempt < max_attempts:
+                time.sleep(wait)
+            else:
+                logger.error(
+                    "Não foi possível conectar ao banco após todas as tentativas. "
+                    "Endpoints que dependem do banco retornarão erro até a conexão ser restabelecida."
+                )
 
 
 def _run_migrations():
@@ -80,9 +111,7 @@ def _run_migrations():
                 if col not in existing:
                     conn.execute(text(ddl))
     except Exception as e:
-        # Não deixa falha na migração impedir o startup
-        import logging
-        logging.getLogger("psv").warning(f"Migration warning: {e}")
+        logger.warning(f"Migration warning: {e}")
 
 
 @app.get("/health", tags=["infra"])
