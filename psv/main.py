@@ -114,25 +114,13 @@ def _create_tables_with_retry(max_attempts: int = 10, delay: float = 3.0) -> Non
 
 def _run_migrations():
     """Aplica migrações de schema incrementais de forma idempotente."""
-    from sqlalchemy import text, inspect as sa_inspect
-    COLS_TO_ADD = [
-        ("professionals", "city",  "ALTER TABLE professionals ADD COLUMN city VARCHAR(100)"),
-        ("professionals", "state", "ALTER TABLE professionals ADD COLUMN state VARCHAR(50)"),
-        ("participants", "medication_notes", "ALTER TABLE participants ADD COLUMN medication_notes TEXT"),
-        ("sessions", "report_generated_at", "ALTER TABLE sessions ADD COLUMN report_generated_at DATETIME"),
-        ("sessions", "report_expires_at", "ALTER TABLE sessions ADD COLUMN report_expires_at DATETIME"),
-        ("sessions", "report_data_removed_at", "ALTER TABLE sessions ADD COLUMN report_data_removed_at DATETIME"),
-        ("sessions", "report_data_status", "ALTER TABLE sessions ADD COLUMN report_data_status VARCHAR(40) DEFAULT 'not_generated' NOT NULL"),
-    ]
+    from migrate import run as run_migrations
+
     try:
-        with engine.begin() as conn:
-            inspector = sa_inspect(conn)
-            for table, col, ddl in COLS_TO_ADD:
-                existing = [c["name"] for c in inspector.get_columns(table)]
-                if col not in existing:
-                    conn.execute(text(ddl))
+        run_migrations(engine, verbose=False)
     except Exception as e:
-        logger.warning(f"Migration warning: {e}")
+        logger.exception("Falha ao atualizar o esquema do banco de dados: %s", e)
+        raise
 
 
 def _run_report_retention_cleanup() -> None:

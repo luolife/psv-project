@@ -1,88 +1,67 @@
-"""
-PSV — Migração manual
-=====================
-Adiciona colunas que não existem ainda nas tabelas do banco.
+"""Migracoes incrementais e idempotentes do banco de dados do PSV."""
 
-Rodar uma vez após deploy:
-    python migrate.py
-
-Idempotente — verifica se a coluna já existe antes de tentar criar.
-"""
+from sqlalchemy import inspect, text
 
 from database import engine
-from sqlalchemy import text, inspect
+
 
 MIGRATIONS = [
-    # professionals: city e state (adicionados na v1.1)
-    {
-        "table": "professionals",
-        "column": "city",
-        "ddl": "ALTER TABLE professionals ADD COLUMN city VARCHAR(100)",
-    },
-    {
-        "table": "professionals",
-        "column": "state",
-        "ddl": "ALTER TABLE professionals ADD COLUMN state VARCHAR(50)",
-    },
-    {
-        "table": "professionals",
-        "column": "country",
-        "ddl": "ALTER TABLE professionals ADD COLUMN country VARCHAR(100) DEFAULT 'Brasil'",
-    },
-    {
-        "table": "professionals",
-        "column": "secondary_email",
-        "ddl": "ALTER TABLE professionals ADD COLUMN secondary_email VARCHAR(200)",
-    },
-    {
-        "table": "participants",
-        "column": "medication_notes",
-        "ddl": "ALTER TABLE participants ADD COLUMN medication_notes TEXT",
-    },
-    {
-        "table": "sessions",
-        "column": "report_generated_at",
-        "ddl": "ALTER TABLE sessions ADD COLUMN report_generated_at DATETIME",
-    },
-    {
-        "table": "sessions",
-        "column": "report_expires_at",
-        "ddl": "ALTER TABLE sessions ADD COLUMN report_expires_at DATETIME",
-    },
-    {
-        "table": "sessions",
-        "column": "report_data_removed_at",
-        "ddl": "ALTER TABLE sessions ADD COLUMN report_data_removed_at DATETIME",
-    },
-    {
-        "table": "sessions",
-        "column": "report_data_status",
-        "ddl": "ALTER TABLE sessions ADD COLUMN report_data_status VARCHAR(40) DEFAULT 'not_generated' NOT NULL",
-    },
-    # checklist_results: aceitar "N/A" no level (já era VARCHAR, sem mudança de schema)
+    # professionals
+    ("professionals", "secondary_email", "VARCHAR(200)"),
+    ("professionals", "titulation", "VARCHAR(100)"),
+    ("professionals", "institution", "VARCHAR(200)"),
+    ("professionals", "country", "VARCHAR(100) DEFAULT 'Brasil'"),
+    ("professionals", "city", "VARCHAR(100)"),
+    ("professionals", "state", "VARCHAR(50)"),
+    # participants
+    ("participants", "country", "VARCHAR(100) DEFAULT 'Brasil'"),
+    ("participants", "medication_notes", "TEXT"),
+    # sessions. TIMESTAMP e aceito pelo PostgreSQL e pelo SQLite.
+    ("sessions", "report_generated_at", "TIMESTAMP"),
+    ("sessions", "report_expires_at", "TIMESTAMP"),
+    ("sessions", "report_data_removed_at", "TIMESTAMP"),
+    (
+        "sessions",
+        "report_data_status",
+        "VARCHAR(40) DEFAULT 'not_generated' NOT NULL",
+    ),
 ]
 
 
-def column_exists(conn, table: str, column: str) -> bool:
-    inspector = inspect(conn)
-    cols = [c["name"] for c in inspector.get_columns(table)]
-    return column in cols
+def run(target_engine=engine, verbose: bool = True) -> None:
+    """Adiciona apenas as colunas ausentes no banco informado."""
+    with target_engine.begin() as conn:
+        inspector = inspect(conn)
+        tables = set(inspector.get_table_names())
+        columns_by_table = {
+            table: {column["name"] for column in inspector.get_columns(table)}
+            for table in tables
+        }
 
+        for table, column, column_type in MIGRATIONS:
+            if table not in tables:
+                if verbose:
+                    print(f"  - {table} nao existe, pulando {column}")
+                continue
 
-def run():
-    with engine.begin() as conn:
-        for m in MIGRATIONS:
-            if "column" in m and "table" in m:
-                if not column_exists(conn, m["table"], m["column"]):
-                    print(f"  + {m['table']}.{m['column']} — adicionando...")
-                    conn.execute(text(m["ddl"]))
-                    print(f"    OK")
-                else:
-                    print(f"  OK {m['table']}.{m['column']} — já existe, pulando")
+            if column in columns_by_table[table]:
+                if verbose:
+                    print(f"  OK {table}.{column} - ja existe, pulando")
+                continue
 
-    print("\nMigração concluída.")
+            if verbose:
+                print(f"  + {table}.{column} - adicionando...")
+            conn.execute(
+                text(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+            )
+            columns_by_table[table].add(column)
+            if verbose:
+                print("    OK")
+
+    if verbose:
+        print("\nMigracao concluida.")
 
 
 if __name__ == "__main__":
-    print("PSV — Executando migrações...\n")
+    print("PSV - Executando migracoes...\n")
     run()
