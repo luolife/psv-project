@@ -32,15 +32,19 @@ class TokenResponse(BaseModel):
 
 class ProfessionalCreate(BaseModel):
     name: str
-    cpf: Optional[str] = None
+    cpf: str
     email: EmailStr
+    secondary_email: Optional[EmailStr] = None
     password: str
-    profession: Optional[str] = None
-    council: Optional[str] = None
-    council_register: Optional[str] = None
-    area: Optional[str] = None
-    titulation: Optional[str] = None
-    institution: Optional[str] = None
+    profession: str
+    council: str
+    council_register: str
+    area: str
+    titulation: str
+    institution: str
+    country: str = "Brasil"
+    city: str
+    state: str
 
     @field_validator("password")
     @classmethod
@@ -55,12 +59,14 @@ class ProfessionalRead(BaseModel):
     name: str
     cpf: Optional[str] = None
     email: str
+    secondary_email: Optional[str] = None
     profession: Optional[str] = None
     council: Optional[str] = None
     council_register: Optional[str] = None
     area: Optional[str] = None
     titulation: Optional[str] = None
     institution: Optional[str] = None
+    country: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     created_at: datetime
@@ -70,7 +76,9 @@ class ProfessionalRead(BaseModel):
 
 class ProfessionalUpdate(BaseModel):
     name: Optional[str] = None
+    cpf: Optional[str] = None
     email: Optional[EmailStr] = None
+    secondary_email: Optional[EmailStr] = None
     password: Optional[str] = None
     profession: Optional[str] = None
     council: Optional[str] = None
@@ -78,6 +86,7 @@ class ProfessionalUpdate(BaseModel):
     area: Optional[str] = None
     titulation: Optional[str] = None
     institution: Optional[str] = None
+    country: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
 
@@ -101,6 +110,7 @@ class ParticipantCreate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = "Brasil"
+    medication_notes: Optional[str] = None
     notes: Optional[str] = None
 
     @field_validator("sex")
@@ -120,6 +130,38 @@ class ParticipantCreate(BaseModel):
         return v
 
 
+class ParticipantUpdate(BaseModel):
+    name: Optional[str] = None
+    birthdate: Optional[str] = None
+    sex: Optional[str] = None
+    diagnosis_cid: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    medication_notes: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("sex")
+    @classmethod
+    def sex_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.upper()
+        if v not in ("M", "F", "O"):
+            raise ValueError("Sexo deve ser M, F ou O")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Nome não pode ser vazio")
+        return v
+
+
 class ParticipantRead(BaseModel):
     id: str
     name: Optional[str] = None
@@ -130,6 +172,7 @@ class ParticipantRead(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
+    medication_notes: Optional[str] = None
     notes: Optional[str] = None
     created_at: datetime
 
@@ -151,6 +194,10 @@ class SessionRead(BaseModel):
     status: str
     created_at: datetime
     completed_at: Optional[datetime]
+    report_generated_at: Optional[datetime] = None
+    report_expires_at: Optional[datetime] = None
+    report_data_removed_at: Optional[datetime] = None
+    report_data_status: str = "not_generated"
 
     model_config = {"from_attributes": True}
 
@@ -195,6 +242,7 @@ class ChecklistResultRead(BaseModel):
     hev_level: str
     hov_level: str
     bsv_level: str
+    raw_responses: dict
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -208,6 +256,7 @@ class TrialData(BaseModel):
     trial: int
     stimulus: Optional[str] = None
     response: Optional[str] = None
+    expected_response: Optional[str] = None
     correct: bool
     rt_ms: Optional[float] = None
 
@@ -256,6 +305,7 @@ class TaskResultRead(BaseModel):
     errors: int
     omissions: int
     mean_rt_ms: Optional[float]
+    raw_trials: List[TrialData] = []
     created_at: datetime
 
     model_config = {"from_attributes": True}

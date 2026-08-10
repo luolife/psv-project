@@ -18,10 +18,22 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const initials = (professional?.name || "PSV")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "PSV";
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const goTo = (path) => {
+    setMenuOpen(false);
+    navigate(path);
   };
 
   // Fecha o menu ao clicar fora
@@ -40,55 +52,58 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="navbar__rainbow" />
       <div className="navbar__inner">
-        <Link to="/" className="navbar__brand">
+        <Link to="/" className="navbar__brand" aria-label="PSV">
           <PsvLogo size={34} />
-          PSV <span>Protocolo Sensorial Visual</span>
+          <strong>PSV</strong>
         </Link>
+        <div className="navbar__title">
+          Protocolo Sensorial Visual
+        </div>
         <div className="navbar__actions">
           {professional && (
             <div style={{ position: "relative" }} ref={menuRef}>
               <button
-                className="navbar__user navbar__user--btn"
+                className="navbar-profile-trigger"
                 onClick={() => setMenuOpen((v) => !v)}
-                title="Editar perfil"
+                title="Perfil do Profissional"
+                aria-label="Abrir menu do profissional"
               >
-                {professional.name}
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
-                  style={{ marginLeft: 5, opacity: 0.5 }}>
-                  <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5"
-                    strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <span className="navbar-profile-trigger__name">{professional.name}</span>
+                <span className="navbar-profile-trigger__button" aria-hidden="true">
+                  {initials}
+                </span>
               </button>
 
               {menuOpen && (
-                <div style={{
-                  position: "absolute", right: 0, top: "calc(100% + 6px)",
-                  background: "var(--c-surface)", border: "1px solid var(--c-border)",
-                  borderRadius: "var(--radius-md)", boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-                  minWidth: 180, zIndex: 200, overflow: "hidden",
-                }}>
+                <div className="navbar-menu">
                   <button
-                    onClick={() => { setMenuOpen(false); navigate("/profile"); }}
-                    style={{
-                      display: "block", width: "100%", textAlign: "left",
-                      padding: "0.75rem 1rem", background: "none", border: "none",
-                      fontSize: "0.875rem", color: "var(--c-text-1)", cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--c-blue-50)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+                    className="navbar-menu__item"
+                    onClick={() => goTo("/profile")}
                   >
-                    Editar perfil
+                    Perfil do Profissional
                   </button>
-                  <div style={{ height: 1, background: "var(--c-border)" }} />
+                  <button
+                    className="navbar-menu__item"
+                    onClick={() => goTo("/manual-tecnico")}
+                  >
+                    Manual Técnico
+                  </button>
+                  <button
+                    className="navbar-menu__item"
+                    onClick={() => goTo("/documentos")}
+                  >
+                    Documentos
+                  </button>
+                  <button
+                    className="navbar-menu__item"
+                    onClick={() => goTo("/sobre")}
+                  >
+                    Sobre
+                  </button>
+                  <div style={{ height: 1, background: "rgba(148, 163, 184, 0.22)" }} />
                   <button
                     onClick={() => { setMenuOpen(false); handleLogout(); }}
-                    style={{
-                      display: "block", width: "100%", textAlign: "left",
-                      padding: "0.75rem 1rem", background: "none", border: "none",
-                      fontSize: "0.875rem", color: "var(--c-text-2)", cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--c-blue-50)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+                    className="navbar-menu__item navbar-menu__item--muted"
                   >
                     Sair
                   </button>

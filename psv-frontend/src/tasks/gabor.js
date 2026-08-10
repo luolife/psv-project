@@ -168,9 +168,9 @@ export async function runGaborTask(container) {
      <br>
      <p style="color:#ccc;font-size:1rem;line-height:2.2">
        <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">←</kbd>
-       → listras inclinadas para a <strong>ESQUERDA</strong> (╲)<br>
+       listras inclinadas para a <strong>ESQUERDA</strong> (╲)<br>
        <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">→</kbd>
-       → listras inclinadas para a <strong>DIREITA</strong> (╱)
+       listras inclinadas para a <strong>DIREITA</strong> (╱)
      </p>
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);

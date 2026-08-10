@@ -1,44 +1,63 @@
-# PSV — Protocolo Sensorial Visual
+# PSV - Protocolo Sensorial Visual
 
-Sistema web para aplicação do Protocolo Sensorial Visual (PSV), incluindo
-check-list de sensibilidade visual e tarefas psicofísicas computadorizadas.
+Aplicacao web do Protocolo Sensorial Visual (PSV), composta por uma API em
+FastAPI e uma interface em React. O sistema permite cadastro profissional,
+gestao de participantes, triagem visual, tarefas computadorizadas, consulta de
+documentos e emissao de relatorios.
 
 ## Estrutura
 
-```
-psv-project/
-├── psv/              ← Backend Python (FastAPI)
-└── psv-frontend/     ← Frontend React (Vite)
+```text
+PSV_SITE_GITHUB/
+|-- psv/              # API, banco, regras e geradores de PDF
+|-- psv-frontend/     # Interface React e documentos publicos finais
+|-- .gitignore        # Impede o envio de dados e arquivos pessoais
+|-- DEPLOY.md         # Roteiro de publicacao
+`-- README.md
 ```
 
-## Rodar localmente
+Esta versao nao inclui banco de dados local, contas de teste, arquivos `.env`,
+capturas da dissertacao, documentos editaveis, logs, dependencias instaladas,
+ferramentas locais ou versoes intermediarias dos PDFs.
 
-**Backend:**
+## Desenvolvimento local
+
+### API
+
 ```bash
 cd psv
+python -m venv .venv
 pip install -r requirements.txt
-cp .env.example .env   # edite com seus valores
-uvicorn main:app --reload
+cp .env.example .env
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
-Acesse: http://localhost:8000/docs
 
-**Frontend:**
+### Interface
+
 ```bash
 cd psv-frontend
-npm install
+npm ci
 npm run dev
 ```
-Acesse: http://localhost:5173
 
-## Deploy
+A interface fica em `http://127.0.0.1:5173` e a API em
+`http://127.0.0.1:8000`.
 
-Veja o arquivo `DEPLOY.md` para instruções completas de deploy no
-Railway (backend) + Supabase (banco) + Vercel (frontend).
+## Publicacao
 
-## Tarefas computadorizadas
+Consulte [DEPLOY.md](DEPLOY.md). A configuracao prevista usa:
 
-- **Contrast Sensitivity** — detecção de grating senoidal em diferentes contrastes
-- **Motion Coherence** — discriminação de direção de movimento (campo de pontos)
-- **Gabor Patch** — discriminação de orientação (±45°)
+- GitHub para armazenar o codigo;
+- PostgreSQL gerenciado para o banco de dados;
+- um servico Python para a API;
+- uma hospedagem de frontend compativel com Vite.
 
-Cada task: 10 trials de prática (com feedback) + 80 trials principais.
+## Protecao de dados
+
+Nunca envie ao GitHub arquivos `.env`, bancos locais, relatorios gerados ou
+dados de profissionais e participantes. Antes da publicacao real, utilize uma
+chave secreta exclusiva, HTTPS, banco de producao e origens CORS restritas ao
+dominio oficial.
+
+Copyright 2026 PSV. Todos os direitos reservados.
+

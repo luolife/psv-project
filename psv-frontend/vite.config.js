@@ -13,6 +13,7 @@ export default defineConfig({
       "/auth":         "http://localhost:8000",
       "/participants": "http://localhost:8000",
       "/sessions":     "http://localhost:8000",
+      "/documents/contract": "http://localhost:8000",
     },
   },
 

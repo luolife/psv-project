@@ -3,6 +3,7 @@ PSV — Router: Sessions
 POST   /sessions                        → abre nova sessão
 GET    /sessions                        → lista do profissional
 GET    /sessions/{id}                   → detalhe da sessão
+DELETE /sessions/{id}                   → exclui sessão do profissional
 PATCH  /sessions/{id}/status            → marca completed / abandoned
 POST   /sessions/{id}/checklist         → salva checklist + calcula scores
 POST   /sessions/{id}/tasks             → salva resultado de uma task
@@ -17,6 +18,11 @@ from sqlalchemy.orm import Session
 
 from auth import get_current_professional
 from core.checklist_logic import calculate_scores, ChecklistValidationError
+from core.report_retention import (
+    REPORT_STATUS_ANONYMIZED_OR_REMOVED,
+    REPORT_STATUS_EXPIRED,
+    enforce_report_retention,
+)
 from database import get_db
 from models import (
     Professional, Participant, PSVSession,
@@ -48,6 +54,9 @@ def _get_own_session(
     ).first()
     if not s:
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
+    if enforce_report_retention(db, s):
+        db.commit()
+        db.refresh(s)
     return s
 
 
@@ -56,6 +65,20 @@ def _require_in_progress(session: PSVSession) -> None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Sessão já está '{session.status}' — não pode ser modificada",
+        )
+
+
+def _require_report_data_available(session: PSVSession) -> None:
+    if session.report_data_status in {
+        REPORT_STATUS_EXPIRED,
+        REPORT_STATUS_ANONYMIZED_OR_REMOVED,
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=(
+                "O prazo de disponibilidade de 60 dias terminou e os dados "
+                "desta avaliação foram removidos"
+            ),
         )
 
 
@@ -92,12 +115,20 @@ def list_sessions(
     db: Session = Depends(get_db),
     current: Professional = Depends(get_current_professional),
 ):
-    return (
+    sessions = (
         db.query(PSVSession)
         .filter(PSVSession.professional_id == current.id)
         .order_by(PSVSession.created_at.desc())
         .all()
     )
+    changed = False
+    for session in sessions:
+        changed = enforce_report_retention(db, session) or changed
+    if changed:
+        db.commit()
+        for session in sessions:
+            db.refresh(session)
+    return sessions
 
 
 @router.get("/{session_id}", response_model=SessionRead)
@@ -107,6 +138,20 @@ def get_session(
     current: Professional = Depends(get_current_professional),
 ):
     return _get_own_session(session_id, db, current)
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    session = _get_own_session(session_id, db, current)
+
+    db.query(TaskResult).filter(TaskResult.session_id == session.id).delete(synchronize_session=False)
+    db.query(ChecklistResult).filter(ChecklistResult.session_id == session.id).delete(synchronize_session=False)
+    db.delete(session)
+    db.commit()
 
 
 @router.patch("/{session_id}/status", response_model=SessionRead)
@@ -242,6 +287,7 @@ def get_summary(
     current: Professional = Depends(get_current_professional),
 ):
     session = _get_own_session(session_id, db, current)
+    _require_report_data_available(session)
     return SessionSummary(
         session=SessionRead.model_validate(session),
         participant=ParticipantRead.model_validate(session.participant),

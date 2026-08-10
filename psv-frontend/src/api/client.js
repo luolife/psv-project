@@ -51,6 +51,10 @@ export const participantsApi = {
     api.get(`/participants/${id}`).then((r) => r.data),
   create: (data) =>
     api.post("/participants", data).then((r) => r.data),
+  update: (id, data) =>
+    api.patch(`/participants/${id}`, data).then((r) => r.data),
+  delete: (id) =>
+    api.delete(`/participants/${id}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -63,6 +67,8 @@ export const sessionsApi = {
     api.get("/sessions").then((r) => r.data),
   get: (id) =>
     api.get(`/sessions/${id}`).then((r) => r.data),
+  delete: (id) =>
+    api.delete(`/sessions/${id}`),
   complete: (id) =>
     api.patch(`/sessions/${id}/status`, { status: "completed" }).then((r) => r.data),
   abandon: (id) =>
@@ -91,10 +97,28 @@ export const tasksApi = {
 // Relatório
 // ---------------------------------------------------------------------------
 export const reportsApi = {
-  download: async (sessionId, filename) => {
-    const res = await api.get(`/sessions/${sessionId}/report`, {
-      responseType: "blob",
-    });
+  download: async (sessionId, filename, type = "geral", confirmed = false) => {
+    const params = {
+      ...(type === "detalhado" ? { tipo: "detalhado" } : {}),
+      confirmado: confirmed,
+    };
+    let res;
+    try {
+      res = await api.get(`/sessions/${sessionId}/report`, {
+        params,
+        responseType: "blob",
+      });
+    } catch (error) {
+      if (error.response?.data instanceof Blob) {
+        const body = await error.response.data.text();
+        try {
+          error.response.data = JSON.parse(body);
+        } catch {
+          error.response.data = { detail: body };
+        }
+      }
+      throw error;
+    }
     const url = URL.createObjectURL(res.data);
     const a = document.createElement("a");
     a.href = url;

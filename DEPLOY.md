@@ -1,192 +1,89 @@
-# PSV — Guia de Deploy
-## Railway (backend) + Supabase (banco) + Vercel (frontend)
+# Publicacao do PSV
 
----
+Este roteiro separa a aplicacao em frontend, API e banco de dados. O GitHub
+armazena apenas o codigo; dados de profissionais e participantes devem ficar em
+um banco de producao protegido.
 
-## Pré-requisitos
+## 1. Enviar ao GitHub
 
-- Conta no GitHub (gratuita): https://github.com
-- Conta no Railway (gratuita): https://railway.app
-- Conta no Supabase (gratuita): https://supabase.com
-- Conta no Vercel (gratuita): https://vercel.com
+Crie um repositorio privado e envie somente o conteudo desta pasta. Antes do
+primeiro envio, confirme que `git status` nao apresenta `.env`, bancos `.db`,
+logs, capturas ou arquivos da dissertacao.
 
----
-
-## Passo 1 — Preparar o repositório no GitHub
-
-Estrutura esperada no repositório:
-```
-psv-project/
-├── psv/                  ← backend Python
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── config.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── auth.py
-│   ├── core/
-│   └── routers/
-└── psv-frontend/         ← frontend React
-    ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    └── src/
-```
-
-No terminal:
 ```bash
 git init
 git add .
-git commit -m "PSV inicial"
-git remote add origin https://github.com/SEU_USUARIO/psv-project.git
+git commit -m "Versao inicial do PSV"
+git branch -M main
+git remote add origin URL_DO_REPOSITORIO
 git push -u origin main
 ```
 
----
+## 2. Banco PostgreSQL
 
-## Passo 2 — Banco de dados no Supabase
+Crie um banco PostgreSQL gerenciado e guarde sua URL de conexao. Nao registre a
+senha no GitHub. A API cria e atualiza as tabelas ao iniciar.
 
-1. Acesse https://supabase.com e crie um projeto
-2. Escolha região: South America (São Paulo)
-3. Defina uma senha forte para o banco
-4. Aguarde o projeto inicializar (~2 min)
-5. Vá em: Settings → Database → Connection string → URI
-6. Copie a URI — será parecida com:
-   ```
-   postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres
-   ```
-7. Guarde essa string — vai usar no próximo passo
+Variavel necessaria:
 
----
-
-## Passo 3 — Backend no Railway
-
-1. Acesse https://railway.app e faça login com o GitHub
-2. Clique em "New Project" → "Deploy from GitHub repo"
-3. Selecione seu repositório
-4. Railway vai detectar Python automaticamente
-
-### Configurar o diretório raiz
-Em Settings → Source:
-- Root Directory: `psv`
-
-### Configurar variáveis de ambiente
-Em Variables, adicione:
-
-```
-DATABASE_URL    = postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres
-SECRET_KEY      = (gere com: python -c "import secrets; print(secrets.token_hex(32))")
-DEBUG           = false
-ALLOWED_ORIGINS = ["https://psv-frontend.vercel.app"]
-ACCESS_TOKEN_EXPIRE_MINUTES = 480
+```text
+DATABASE_URL=postgresql://USUARIO:SENHA@HOST:5432/BANCO
 ```
 
-### Configurar o comando de start
-Em Settings → Deploy:
-- Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+## 3. Publicar a API
 
-### Verificar o deploy
-Após o deploy, Railway gera uma URL pública tipo:
-`https://psv-production-xxxx.up.railway.app`
+No servico Python escolhido, conecte o repositorio e defina `psv` como
+diretorio raiz. O `Dockerfile` dessa pasta pode ser usado diretamente.
 
-Teste acessando: `https://sua-url.railway.app/health`
-Deve retornar: `{"status": "ok", "version": "0.1.0"}`
+Comando de inicializacao, quando solicitado pela plataforma:
 
----
-
-## Passo 4 — Frontend no Vercel
-
-### Atualizar a URL da API no frontend
-Antes de fazer deploy, edite `psv-frontend/src/api/client.js`:
-
-```javascript
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "",
-  // ...
-});
+```text
+uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-O `VITE_API_URL` será configurado como variável de ambiente no Vercel.
+Configure as variaveis:
 
-### Deploy no Vercel
-1. Acesse https://vercel.com e faça login com GitHub
-2. Clique em "New Project"
-3. Importe seu repositório
-4. Configure:
-   - Framework Preset: Vite
-   - Root Directory: `psv-frontend`
-   - Build Command: `npm run build` (mas ajuste o outDir!)
-   - Output Directory: `dist`
-
-**Importante:** para o Vercel, o `vite.config.js` precisa de outDir diferente:
-```javascript
-build: {
-  outDir: "dist",  // Vercel usa dist, não ../psv/static
-}
+```text
+DATABASE_URL=URL_DO_POSTGRESQL
+SECRET_KEY=CHAVE_ALEATORIA_LONGA_E_EXCLUSIVA
+DEBUG=false
+ACCESS_TOKEN_EXPIRE_MINUTES=480
+ALLOWED_ORIGINS=["https://DOMINIO-DO-FRONTEND"]
 ```
 
-Crie um segundo config ou use variável de ambiente para distinguir.
+Depois, confirme que `https://DOMINIO-DA-API/health` retorna o estado `ok`.
 
-### Variáveis de ambiente no Vercel
-Em Settings → Environment Variables:
-```
-VITE_API_URL = https://sua-url.railway.app
-```
+## 4. Publicar a interface
 
-### SPA routing — criar vercel.json
-Crie `psv-frontend/vercel.json`:
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-```
-Isso garante que rotas como `/sessions/123/checklist` funcionem ao recarregar.
+Na hospedagem do frontend, conecte o mesmo repositorio e configure:
 
----
-
-## Passo 5 — Atualizar CORS no Railway
-
-Após o Vercel gerar a URL do frontend (ex: `https://psv-abc123.vercel.app`),
-atualize a variável no Railway:
-
-```
-ALLOWED_ORIGINS = ["https://psv-abc123.vercel.app"]
+```text
+Diretorio raiz: psv-frontend
+Comando de instalacao: npm ci
+Comando de build: npm run build
+Diretorio de saida: dist
 ```
 
----
+Variavel necessaria:
 
-## Resultado final
-
-```
-Profissional acessa → https://psv-abc123.vercel.app
-                              ↓
-                    Vercel serve o React
-                              ↓
-              React chama → https://psv-xxxx.railway.app
-                              ↓
-                    Railway roda FastAPI
-                              ↓
-                    Supabase PostgreSQL
+```text
+VITE_API_URL=https://DOMINIO-DA-API
 ```
 
----
+O arquivo `vercel.json` ja preserva as rotas internas da aplicacao em uma
+hospedagem Vercel.
 
-## Domínio personalizado (opcional)
+## 5. Revisao antes de liberar o acesso
 
-Tanto Railway quanto Vercel permitem conectar um domínio próprio gratuitamente.
-Ex: `psv.seusite.com.br` → aponta para o Vercel
-    `api.psv.seusite.com.br` → aponta para o Railway
+- Manter o repositorio privado durante a configuracao inicial.
+- Usar uma `SECRET_KEY` nova, forte e nunca reutilizada.
+- Manter `DEBUG=false` em producao.
+- Restringir `ALLOWED_ORIGINS` ao dominio oficial do frontend.
+- Confirmar HTTPS no frontend, na API e no banco.
+- Criar uma conta nova e testar cadastro, login e edicao do perfil.
+- Testar cadastro e exclusao de participante.
+- Testar triagem, tarefas, resultados e os dois tipos de relatorio.
+- Conferir Termo de Uso, Politica de Privacidade e Manual Tecnico.
+- Confirmar o prazo de disponibilidade de 60 dias dos relatorios.
+- Definir rotina de backup, monitoramento e resposta a incidentes.
 
----
-
-## Limites dos planos gratuitos
-
-| Serviço  | Limite gratuito                        | Quando pagar          |
-|----------|----------------------------------------|-----------------------|
-| Railway  | 500h/mês + 1GB RAM                     | Uso intenso contínuo  |
-| Supabase | 500MB banco + 50MB storage             | Banco grande          |
-| Vercel   | Sem limite para projetos pessoais      | Time/organização      |
-
-Para uso clínico inicial (dezenas de avaliações/mês), os tiers gratuitos
-são suficientes por tempo indeterminado.

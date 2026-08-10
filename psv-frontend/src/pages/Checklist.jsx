@@ -1,132 +1,127 @@
 // frontend/src/pages/Checklist.jsx
-// Substituído pelo fluxo: Triagem Visual → Recomendações Mínimas → Tarefas
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+// Fluxo: Triagem Visual -> Recomendações Mínimas -> Tarefas
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import FlowSteps from "../components/FlowSteps";
+import SiteFooter from "../components/SiteFooter";
 import { checklistApi, sessionsApi } from "../api/client";
 
-// ---------------------------------------------------------------------------
-// Stepper
-// ---------------------------------------------------------------------------
-function Stepper({ phase }) {
-  // phase: "screening" | "recommendations" | "done"
-  const steps = [
-    { label: "Cadastro",        done: true  },
-    { label: "Triagem Visual",  done: phase === "recommendations" || phase === "done", active: phase === "screening" },
-    { label: "Recomendações",   done: phase === "done", active: phase === "recommendations" },
-    { label: "Tarefas",         done: false, active: false },
-    { label: "Resultados",      done: false, active: false },
-  ];
+const YES_NO = [
+  { value: "sim", label: "Sim" },
+  { value: "nao", label: "Não" },
+];
 
+const SCALE_OPTIONS = [
+  { value: "0", label: "0", description: "Nunca" },
+  { value: "1", label: "1", description: "Raramente" },
+  { value: "2", label: "2", description: "Às vezes" },
+  { value: "3", label: "3", description: "Frequentemente" },
+  { value: "4", label: "4", description: "Sempre" },
+];
+
+const MINIMUM_ITEMS = [
+  {
+    id: "uses_correction",
+    question: "Você utiliza óculos ou lentes corretivas no dia a dia?",
+    options: YES_NO,
+  },
+  {
+    id: "wearing_correction_now",
+    question: "Caso utilize óculos ou lentes, você está usando sua correção visual habitual neste momento?",
+    options: YES_NO,
+  },
+  {
+    id: "visual_condition",
+    question: "Você possui alguma condição visual ou oftalmológica que possa interferir na realização de tarefas em tela?",
+    options: YES_NO,
+  },
+  {
+    id: "visual_reaction_history",
+    question: "Você já teve crises, convulsões ou reações importantes desencadeadas por luzes piscando, telas ou estímulos visuais intensos?",
+    options: YES_NO,
+  },
+  {
+    id: "current_discomfort",
+    question: "Neste momento, você está com dor de cabeça intensa, tontura, náusea, sonolência importante ou desconforto visual que possa dificultar a realização das tarefas?",
+    options: YES_NO,
+  },
+];
+
+const SCREENING_BLOCKS = [
+  {
+    title: "Desconforto Visual Ambiental",
+    items: [
+      "Luzes fortes, como sol intenso, lâmpadas brancas ou iluminação muito clara, costumam causar desconforto em você?",
+      "Reflexos em telas, vidros, pisos ou superfícies brilhantes costumam incomodar você?",
+      "Mudanças rápidas de iluminação, como entrar em um ambiente muito claro ou muito escuro, causam desconforto ou dificuldade de adaptação visual?",
+      "O brilho de telas, como computador, celular, televisão ou tablet, costuma causar cansaço visual, irritação ou necessidade de reduzir a luminosidade?",
+    ],
+  },
+  {
+    title: "Sobrecarga Visual Contextual",
+    items: [
+      "Ambientes com muitas informações visuais, como supermercados, shoppings, salas cheias ou locais movimentados, costumam ser cansativos para você?",
+      "Quando há muitas cores, objetos, placas, luzes ou pessoas no mesmo ambiente, você sente dificuldade para manter a atenção?",
+      "Em locais visualmente carregados, você sente vontade de sair, fazer pausa ou procurar um ambiente mais calmo?",
+      "Após permanecer em ambientes com muitos estímulos visuais, você costuma sentir fadiga, irritação, ansiedade ou necessidade de ficar em local com menos estímulos?",
+    ],
+  },
+  {
+    title: "Contraste, Padrões e Organização Visual",
+    items: [
+      "Você sente dificuldade para perceber informações visuais com pouco contraste, como letras claras, objetos discretos ou diferenças sutis entre tons?",
+      "Padrões repetitivos, como listras, grades, pisos geométricos, estampas ou fileiras muito próximas, causam incômodo, confusão visual ou desconforto?",
+      "Quando há muitos detalhes no mesmo espaço, você sente dificuldade para localizar rapidamente o que precisa observar?",
+      "A organização visual de páginas, telas, formulários, aplicativos ou ambientes muito cheios costuma dificultar sua compreensão ou localização de informações?",
+    ],
+  },
+  {
+    title: "Movimento Visual",
+    items: [
+      "Pessoas, objetos ou imagens em movimento no seu campo de visão dificultam sua concentração?",
+      "Ambientes com muita movimentação, como corredores, filas, trânsito de pessoas ou locais públicos, costumam causar desconforto visual ou cansaço?",
+      "Vídeos rápidos, rolagem de tela, animações, jogos ou mudanças visuais rápidas costumam incomodar você?",
+      "Em ambientes movimentados, você sente dificuldade para acompanhar visualmente a direção ou a organização do movimento ao redor?",
+    ],
+  },
+  {
+    title: "Interesse, Atração ou Fixação por Estímulos Visuais",
+    items: [
+      "Detalhes visuais pequenos, como padrões, sombras, reflexos, linhas ou movimentos discretos, chamam muito sua atenção?",
+      "Você costuma observar luzes, reflexos, sombras, objetos girando ou movimentos repetitivos por interesse ou prazer?",
+      "Você sente vontade de se aproximar de telas, luzes, objetos ou padrões visuais para observar melhor os detalhes?",
+      "Alguns estímulos visuais, como brilhos, movimentos, formas ou padrões, conseguem prender sua atenção por bastante tempo?",
+    ],
+  },
+  {
+    title: "Impacto Funcional da Experiência Visual",
+    items: [
+      "A sensibilidade visual interfere na sua permanência em ambientes de estudo, trabalho, atendimento ou convivência social?",
+      "Você evita determinados lugares por causa da iluminação, excesso de estímulos visuais ou movimentação intensa?",
+      "Quando sente desconforto visual, você precisa fazer pausas, reduzir estímulos, fechar os olhos, desviar o olhar ou sair do ambiente?",
+      "O desconforto visual interfere na sua atenção, comunicação, desempenho em tarefas ou interação com outras pessoas?",
+    ],
+  },
+];
+
+const SCALE_ITEMS = SCREENING_BLOCKS.flatMap((block) => block.items);
+
+function ChoiceGroup({ name, options, value, onChange, disabled = false }) {
   return (
-    <div className="stepper">
-      {steps.map((s, i) => (
-        <div key={s.label} className="stepper__step">
-          <div className={`stepper__dot ${
-            s.done   ? "stepper__dot--done"    :
-            s.active ? "stepper__dot--active"  : "stepper__dot--pending"
-          }`}>
-            {s.done ? "✓" : i + 1}
-          </div>
-          <span className="stepper__label">{s.label}</span>
-          {i < steps.length - 1 && (
-            <div className={`stepper__line ${s.done ? "stepper__line--done" : ""}`} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Dados — Triagem Visual
-// ---------------------------------------------------------------------------
-const CORRECTION_TYPES = [
-  "Miopia", "Hipermetropia", "Astigmatismo", "Presbiopia",
-  "Não sabe informar", "Não se aplica", "Outro",
-];
-
-const CURRENT_CONDITIONS = [
-  "Dor de cabeça", "Tontura", "Náusea", "Fadiga visual",
-  "Desconforto significativo", "Sonolência", "Agitação importante", "Nenhuma", "Outro",
-];
-
-const YNI = [
-  { value: "sim",             label: "Sim"              },
-  { value: "nao",             label: "Não"              },
-  { value: "nao_informado",   label: "Não sabe informar" },
-];
-
-const YNNA = [
-  { value: "sim",             label: "Sim"              },
-  { value: "nao",             label: "Não"              },
-  { value: "nao_se_aplica",   label: "Não se aplica"    },
-];
-
-function RadioGroup({ name, options, value, onChange }) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.375rem" }}>
-      {options.map((opt) => {
-        const id = `${name}_${opt.value}`;
-        const checked = value === opt.value;
+    <div className="screening-choice-row">
+      {options.map((option) => {
+        const checked = value === option.value;
         return (
-          <label
-            key={opt.value}
-            htmlFor={id}
-            style={{
-              display: "flex", alignItems: "center", gap: "0.4rem",
-              padding: "0.4rem 0.75rem",
-              border: `1.5px solid ${checked ? "var(--c-blue-500)" : "var(--c-border)"}`,
-              borderRadius: "var(--radius-md)",
-              background: checked ? "var(--c-blue-50)" : "transparent",
-              cursor: "pointer", fontSize: "0.85rem",
-              color: checked ? "var(--c-blue-500)" : "var(--c-text-2)",
-              transition: "all 0.12s",
-            }}
+          <button
+            key={option.value}
+            type="button"
+            className={`screening-choice ${checked ? "is-selected" : ""}`}
+            onClick={() => onChange(option.value)}
+            disabled={disabled}
           >
-            <input
-              type="radio" id={id} name={name} value={opt.value}
-              checked={checked} onChange={() => onChange(opt.value)}
-              style={{ display: "none" }}
-            />
-            {opt.label}
-          </label>
-        );
-      })}
-    </div>
-  );
-}
-
-function CheckGroup({ name, options, values, onChange }) {
-  const toggle = (val) => {
-    const next = values.includes(val) ? values.filter((v) => v !== val) : [...values, val];
-    onChange(next);
-  };
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.375rem" }}>
-      {options.map((opt) => {
-        const checked = values.includes(opt);
-        return (
-          <label
-            key={opt}
-            style={{
-              display: "flex", alignItems: "center", gap: "0.4rem",
-              padding: "0.4rem 0.75rem",
-              border: `1.5px solid ${checked ? "var(--c-blue-500)" : "var(--c-border)"}`,
-              borderRadius: "var(--radius-md)",
-              background: checked ? "var(--c-blue-50)" : "transparent",
-              cursor: "pointer", fontSize: "0.85rem",
-              color: checked ? "var(--c-blue-500)" : "var(--c-text-2)",
-              transition: "all 0.12s",
-            }}
-          >
-            <input
-              type="checkbox" checked={checked}
-              onChange={() => toggle(opt)}
-              style={{ display: "none" }}
-            />
-            {opt}
-          </label>
+            {option.label}
+          </button>
         );
       })}
     </div>
@@ -135,364 +130,445 @@ function CheckGroup({ name, options, values, onChange }) {
 
 function SectionTitle({ n, children }) {
   return (
-    <div style={{
-      display: "flex", gap: "0.625rem", alignItems: "flex-start",
-      paddingBottom: "0.75rem", borderBottom: "1px solid var(--c-border)",
-      marginBottom: "0.25rem",
-    }}>
-      <span style={{
-        flexShrink: 0, width: 24, height: 24, borderRadius: "50%",
-        background: "var(--c-blue-500)", color: "#fff",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "0.75rem", fontWeight: 700, marginTop: 1,
-      }}>{n}</span>
-      <span style={{ fontSize: "0.9rem", fontWeight: 500, color: "var(--c-text-1)", lineHeight: 1.4 }}>
+    <div className="screening-question-title">
+      <span className="screening-question-title__number">{n}</span>
+      <span className="screening-question-title__text">
         {children}
       </span>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Triagem Visual
-// ---------------------------------------------------------------------------
-function VisualScreening({ onNext }) {
-  const [data, setData] = useState({
-    uses_correction:         "",
-    wearing_correction_now:  "",
-    correction_type:         "",
-    correction_type_other:   "",
-    ophthalmic_followup:     "",
-    ophthalmic_followup_desc:"",
-    ocular_surgery:          "",
-    ocular_surgery_desc:     "",
-    color_blindness:         "",
-    light_sensitivity:       "",
-    photosensitive_epilepsy: "",
-    current_conditions:      [],
-    current_conditions_other:"",
-    extra_notes:             "",
-  });
-
-  const set = (field, value) => setData((d) => ({ ...d, [field]: value }));
-
-  const requiredFilled = () => {
-    const r = [
-      data.uses_correction,
-      data.wearing_correction_now,
-      data.ophthalmic_followup,
-      data.ocular_surgery,
-      data.color_blindness,
-      data.light_sensitivity,
-      data.photosensitive_epilepsy,
-    ];
-    return r.every((v) => v !== "");
-  };
-
+function ScaleQuestion({ number, question, value, onChange, disabled = false }) {
   return (
-    <div className="card">
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ marginBottom: "0.25rem" }}>Triagem Visual</h2>
-        <p className="text-muted text-small">
-          Registre as condições visuais e o estado atual do participante antes da aplicação.
-        </p>
+    <div className="screening-scale-item">
+      <SectionTitle n={number}>{question}</SectionTitle>
+      <div className="screening-scale-options" role="group" aria-label={`Resposta da pergunta ${number}`}>
+        {SCALE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`scale-btn screening-scale-btn ${value === option.value ? "selected" : ""}`}
+            onClick={() => onChange(option.value)}
+            title={option.description}
+            disabled={disabled}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-
-        {/* 1 */}
-        <div>
-          <SectionTitle n={1}>
-            O participante utiliza óculos de grau ou lentes de contato?
-          </SectionTitle>
-          <RadioGroup
-            name="uses_correction"
-            options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]}
-            value={data.uses_correction}
-            onChange={(v) => set("uses_correction", v)}
-          />
-        </div>
-
-        {/* 2 */}
-        <div>
-          <SectionTitle n={2}>
-            O participante está utilizando sua correção visual habitual neste momento?
-          </SectionTitle>
-          <RadioGroup
-            name="wearing_correction_now"
-            options={YNNA}
-            value={data.wearing_correction_now}
-            onChange={(v) => set("wearing_correction_now", v)}
-          />
-        </div>
-
-        {/* 3 */}
-        <div>
-          <SectionTitle n={3}>
-            Qual é o tipo de correção visual utilizada pelo participante?
-          </SectionTitle>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.375rem" }}>
-            {CORRECTION_TYPES.map((opt) => {
-              const checked = data.correction_type === opt;
-              return (
-                <label key={opt} style={{
-                  display: "flex", alignItems: "center", gap: "0.4rem",
-                  padding: "0.4rem 0.75rem",
-                  border: `1.5px solid ${checked ? "var(--c-blue-500)" : "var(--c-border)"}`,
-                  borderRadius: "var(--radius-md)",
-                  background: checked ? "var(--c-blue-50)" : "transparent",
-                  cursor: "pointer", fontSize: "0.85rem",
-                  color: checked ? "var(--c-blue-500)" : "var(--c-text-2)",
-                  transition: "all 0.12s",
-                }}>
-                  <input type="radio" name="correction_type" value={opt}
-                    checked={checked} onChange={() => set("correction_type", opt)}
-                    style={{ display: "none" }} />
-                  {opt}
-                </label>
-              );
-            })}
-          </div>
-          {data.correction_type === "Outro" && (
-            <input
-              className="form-input" style={{ marginTop: "0.625rem" }}
-              placeholder="Descreva"
-              value={data.correction_type_other}
-              onChange={(e) => set("correction_type_other", e.target.value)}
-            />
-          )}
-        </div>
-
-        {/* 4 */}
-        <div>
-          <SectionTitle n={4}>
-            O participante possui diagnóstico ou acompanhamento oftalmológico atual?
-          </SectionTitle>
-          <RadioGroup name="ophthalmic_followup" options={YNI}
-            value={data.ophthalmic_followup}
-            onChange={(v) => set("ophthalmic_followup", v)} />
-          {data.ophthalmic_followup === "sim" && (
-            <input className="form-input" style={{ marginTop: "0.625rem" }}
-              placeholder="Descreva"
-              value={data.ophthalmic_followup_desc}
-              onChange={(e) => set("ophthalmic_followup_desc", e.target.value)} />
-          )}
-        </div>
-
-        {/* 5 */}
-        <div>
-          <SectionTitle n={5}>
-            O participante possui histórico de cirurgia ocular ou procedimento oftalmológico relevante?
-          </SectionTitle>
-          <RadioGroup name="ocular_surgery" options={YNI}
-            value={data.ocular_surgery}
-            onChange={(v) => set("ocular_surgery", v)} />
-          {data.ocular_surgery === "sim" && (
-            <input className="form-input" style={{ marginTop: "0.625rem" }}
-              placeholder="Descreva"
-              value={data.ocular_surgery_desc}
-              onChange={(e) => set("ocular_surgery_desc", e.target.value)} />
-          )}
-        </div>
-
-        {/* 6 */}
-        <div>
-          <SectionTitle n={6}>
-            O participante apresenta daltonismo ou dificuldade conhecida para diferenciar cores?
-          </SectionTitle>
-          <RadioGroup name="color_blindness" options={YNI}
-            value={data.color_blindness}
-            onChange={(v) => set("color_blindness", v)} />
-        </div>
-
-        {/* 7 */}
-        <div>
-          <SectionTitle n={7}>
-            O participante apresenta sensibilidade importante à luz, reflexos ou ambientes muito iluminados?
-          </SectionTitle>
-          <RadioGroup name="light_sensitivity" options={YNI}
-            value={data.light_sensitivity}
-            onChange={(v) => set("light_sensitivity", v)} />
-        </div>
-
-        {/* 8 */}
-        <div>
-          <SectionTitle n={8}>
-            O participante possui histórico de epilepsia fotossensível, crise desencadeada por luzes ou desconforto importante com luzes/padrões visuais?
-          </SectionTitle>
-          <RadioGroup name="photosensitive_epilepsy" options={YNI}
-            value={data.photosensitive_epilepsy}
-            onChange={(v) => set("photosensitive_epilepsy", v)} />
-        </div>
-
-        {/* 9 */}
-        <div>
-          <SectionTitle n={9}>
-            No momento da aplicação, o participante apresenta alguma condição que possa interferir na realização das tarefas?
-          </SectionTitle>
-          <CheckGroup
-            name="current_conditions"
-            options={CURRENT_CONDITIONS}
-            values={data.current_conditions}
-            onChange={(v) => set("current_conditions", v)}
-          />
-          {data.current_conditions.includes("Outro") && (
-            <input className="form-input" style={{ marginTop: "0.625rem" }}
-              placeholder="Descreva"
-              value={data.current_conditions_other}
-              onChange={(e) => set("current_conditions_other", e.target.value)} />
-          )}
-        </div>
-
-        {/* 10 */}
-        <div>
-          <SectionTitle n={10}>
-            Há alguma observação relevante sobre o estado visual ou comportamental do participante antes da aplicação?
-          </SectionTitle>
-          <textarea
-            className="form-input" rows={3} style={{ marginTop: "0.375rem", resize: "vertical" }}
-            value={data.extra_notes}
-            onChange={(e) => set("extra_notes", e.target.value)}
-          />
-        </div>
-
-      </div>
-
-      <div className="flex gap-1" style={{ marginTop: "2rem" }}>
-        <button
-          className="btn btn--primary"
-          style={{ flex: 1 }}
-          onClick={() => onNext(data)}
-          disabled={!requiredFilled()}
-        >
-          Continuar para as Recomendações →
-        </button>
-      </div>
-      {!requiredFilled() && (
-        <p className="text-muted text-small" style={{ marginTop: "0.5rem", textAlign: "center" }}>
-          Responda as perguntas obrigatórias (1–8) para continuar.
-        </p>
-      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Recomendações Mínimas
-// ---------------------------------------------------------------------------
-const MIN_RECOMMENDATIONS = [
-  "Local silencioso, com iluminação estável e sem reflexos diretos na tela.",
-  "Computador ou notebook em tela cheia, com brilho fixo e notificações desativadas.",
-  "Tela sem modo noturno, filtro de luz azul, brilho automático ou economia de energia.",
-  "Participante sentado de frente para a tela, a aproximadamente 50–60 cm de distância.",
-  "Uso da correção visual habitual, quando necessário, como óculos ou lentes de contato.",
-  "Não iniciar a aplicação em caso de dor de cabeça intensa, tontura, náusea, fadiga visual importante ou desconforto significativo.",
-  "Interromper a aplicação se houver desconforto visual, mal-estar ou solicitação do participante.",
-];
+function ScaleGuide() {
+  return (
+    <div className="screening-scale-guide">
+      <span className="about-card__label">Escala de Resposta</span>
+      <div className="screening-scale-guide__items">
+        {SCALE_OPTIONS.map((option) => (
+          <span key={option.value}>
+            <strong>{option.label}</strong>
+            {option.description}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-function MinRecommendations({ onConfirm, loading }) {
-  const [confirmed, setConfirmed] = useState(false);
+function buildInitialScaleResponses() {
+  return SCALE_ITEMS.reduce((responses, _item, index) => ({
+    ...responses,
+    [`q${index + 1}`]: "",
+  }), {});
+}
+
+function buildInitialMinimumResponses() {
+  return MINIMUM_ITEMS.reduce((values, item) => ({ ...values, [item.id]: "" }), {});
+}
+
+function buildEmptyScreening() {
+  return {
+    minimum: buildInitialMinimumResponses(),
+    scale: buildInitialScaleResponses(),
+    open_response: "",
+  };
+}
+
+function parseMaybeJson(value) {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseStoredScreening(rawResponses) {
+  if (!rawResponses) return null;
+  const parsedEntries = Object.values(rawResponses).map(parseMaybeJson);
+  const direct = parseMaybeJson(rawResponses);
+  const minimum = direct?.minimum
+    || parsedEntries.find((entry) => entry?.minimum)?.minimum
+    || null;
+  const scale = direct?.scale
+    || parsedEntries.find((entry) => entry?.scale)?.scale
+    || null;
+  const openResponse = direct?.open_response
+    || parsedEntries.find((entry) => Object.prototype.hasOwnProperty.call(entry || {}, "open_response"))?.open_response
+    || "";
+
+  if (!minimum && !scale) return null;
+  return {
+    minimum: { ...buildInitialMinimumResponses(), ...(minimum || {}) },
+    scale: { ...buildInitialScaleResponses(), ...(scale || {}) },
+    open_response: openResponse,
+  };
+}
+
+function buildChecklistPayload(screeningData) {
+  return screeningData
+    ? Object.fromEntries(Object.entries(screeningData).map(([key, value], index) => [
+      index + 1,
+      typeof value === "string" ? value : JSON.stringify({ [key]: value }),
+    ]))
+    : { 1: "triagem_concluida" };
+}
+
+function loadScreeningDraft(sessionId) {
+  const saved = localStorage.getItem(`psv_screening_${sessionId}`);
+  const parsed = saved ? parseMaybeJson(saved) : null;
+  if (!parsed || typeof parsed !== "object") return null;
+  return {
+    minimum: { ...buildInitialMinimumResponses(), ...(parsed.minimum || {}) },
+    scale: { ...buildInitialScaleResponses(), ...(parsed.scale || {}) },
+    open_response: parsed.open_response || "",
+  };
+}
+
+function VisualScreening({ onNext, onBack, initialData, onChange, locked = false, saving = false }) {
+  const [data, setData] = useState(initialData || buildEmptyScreening());
+
+  useEffect(() => {
+    if (initialData) setData(initialData);
+  }, [initialData]);
+
+  useEffect(() => {
+    onChange?.(data);
+  }, [data, onChange]);
+
+  const setMinimum = (field, value) => {
+    if (locked) return;
+    setData((current) => ({
+      ...current,
+      minimum: { ...current.minimum, [field]: value },
+    }));
+  };
+
+  const setScale = (field, value) => {
+    if (locked) return;
+    setData((current) => ({
+      ...current,
+      scale: { ...current.scale, [field]: value },
+    }));
+  };
+
+  const requiredFilled = () => (
+    Object.values(data.minimum).every(Boolean)
+    && Object.values(data.scale).every(Boolean)
+  );
+
+  let scaleNumber = 1;
 
   return (
-    <div className="card">
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ marginBottom: "0.25rem" }}>Recomendações Mínimas para Aplicação</h2>
-        <p className="text-muted text-small">
-          Confirme se as condições abaixo foram verificadas antes de iniciar as tarefas visuais.
+    <>
+    <div className="card screening-card">
+      <div className="section-card-header section-card-header--screening">
+        <h2>Triagem de Sensibilidade Visual</h2>
+        <p className="screening-note">
+          Registre a experiência visual do participante antes da aplicação das tarefas
         </p>
       </div>
 
-      <div style={{
-        border: "1px solid var(--c-border)",
-        borderRadius: "var(--radius-md)",
-        overflow: "hidden",
-        marginBottom: "1.5rem",
-      }}>
+      <section className="screening-intro">
+        <span className="about-card__label">Instrução ao participante</span>
+        <p>
+          A seguir, serão apresentadas algumas perguntas sobre sua experiência com estímulos visuais no dia a dia. Não existem respostas certas ou erradas. Responda considerando como essas situações costumam ocorrer para você, principalmente nos últimos meses.
+        </p>
+        <p>
+          Esta etapa tem finalidade descritiva e serve para contextualizar a aplicação das tarefas computadorizadas do Protocolo Sensorial Visual. As respostas não possuem finalidade diagnóstica.
+        </p>
+      </section>
+
+      <section className="screening-block">
+        <div className="screening-block__header">
+          <h3>Condições Mínimas para Aplicação</h3>
+        </div>
+
+        <div className="screening-question-list">
+          {MINIMUM_ITEMS.map((item, index) => (
+            <div className="screening-minimum-item" key={item.id}>
+              <SectionTitle n={index + 1}>
+                {item.question}
+              </SectionTitle>
+              <ChoiceGroup
+                name={item.id}
+                options={item.options}
+                value={data.minimum[item.id]}
+                onChange={(value) => setMinimum(item.id, value)}
+                disabled={locked}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {SCREENING_BLOCKS.map((block) => (
+        <section key={block.title} className="screening-block">
+          <div className="screening-block__header">
+            <h3>{block.title}</h3>
+          </div>
+
+          <ScaleGuide />
+
+          <div className="screening-question-list">
+            {block.items.map((question) => {
+              const number = scaleNumber++;
+              return (
+                <ScaleQuestion
+                  key={question}
+                  number={number}
+                  question={question}
+                  value={data.scale[`q${number}`]}
+                  onChange={(value) => setScale(`q${number}`, value)}
+                  disabled={locked}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ))}
+
+      <section className="screening-block">
+        <div className="screening-block__header">
+          <h3>Experiência visual do participante</h3>
+        </div>
+        <div>
+          <SectionTitle n={25}>
+            Existe algum tipo de luz, tela, ambiente, movimento, padrão visual ou situação que costuma causar desconforto, interesse intenso, cansaço ou dificuldade para você?
+          </SectionTitle>
+          <textarea
+            className="form-input screening-open-response"
+            rows={4}
+            value={data.open_response}
+            onChange={(event) => setData((current) => ({ ...current, open_response: event.target.value }))}
+            readOnly={locked}
+          />
+        </div>
+      </section>
+    </div>
+
+      <div className="flow-action-row flow-action-row--split">
+        <button
+          type="button"
+          className="flow-secondary-button"
+          onClick={onBack}
+        >
+          Voltar
+        </button>
+        <button
+          className="flow-next-button"
+          onClick={() => onNext(data)}
+          disabled={!requiredFilled() || saving}
+        >
+          {saving ? "Registrando..." : "Próximo"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+const MIN_RECOMMENDATIONS = [
+  {
+    label: "Ambiente",
+    detail: "Local silencioso, com iluminação estável e sem reflexos diretos na tela.",
+  },
+  {
+    label: "Modo da Tela",
+    detail: "Computador ou notebook em tela cheia, com brilho fixo e notificações desativadas.",
+  },
+  {
+    label: "Filtros Visuais",
+    detail: "Tela sem modo noturno, filtro de luz azul, brilho automático ou economia de energia.",
+  },
+  {
+    label: "Posicionamento",
+    detail: "Participante sentado de frente para a tela, a aproximadamente 50-60 cm de distância.",
+  },
+  {
+    label: "Correção Visual",
+    detail: "Uso da correção visual habitual, quando necessário, como óculos ou lentes de contato.",
+  },
+  {
+    label: "Condição Atual",
+    detail: "Não iniciar a aplicação em caso de dor de cabeça intensa, tontura, náusea, fadiga visual importante ou desconforto significativo.",
+  },
+  {
+    label: "Interrupção",
+    detail: "Interromper a aplicação se houver desconforto visual, mal-estar ou solicitação do participante.",
+  },
+];
+
+function MinRecommendations({ onConfirm, onBack, loading }) {
+  const [confirmed, setConfirmed] = useState(false);
+
+  return (
+    <>
+    <div className="card recommendations-card">
+      <div className="section-card-header section-card-header--screening">
+        <h2>Recomendações Mínimas</h2>
+        <p className="screening-note">
+          Confira as condições de aplicação antes de iniciar as tarefas
+        </p>
+      </div>
+
+      <div className="application-settings">
         {MIN_RECOMMENDATIONS.map((rec, i) => (
-          <div key={i} style={{
-            display: "flex", gap: "0.75rem", alignItems: "flex-start",
-            padding: "0.875rem 1rem",
-            borderBottom: i < MIN_RECOMMENDATIONS.length - 1 ? "1px solid var(--c-border)" : "none",
-          }}>
-            <span style={{
-              flexShrink: 0, color: "var(--c-teal-500)", fontWeight: 700, marginTop: 1,
-            }}>✓</span>
-            <span style={{ fontSize: "0.9rem", color: "var(--c-text-1)", lineHeight: 1.5 }}>
-              {rec}
+          <div
+            key={rec.label}
+            className={`application-settings__row ${i % 2 === 0 ? "is-soft" : ""}`}
+          >
+            <span className="application-settings__label">
+              {rec.label}
+            </span>
+            <span className="application-settings__detail">
+              {rec.detail}
             </span>
           </div>
         ))}
       </div>
 
-      <label style={{
-        display: "flex", alignItems: "flex-start", gap: "0.75rem",
-        padding: "1rem",
-        border: `1.5px solid ${confirmed ? "var(--c-blue-500)" : "var(--c-border)"}`,
-        borderRadius: "var(--radius-md)",
-        background: confirmed ? "var(--c-blue-50)" : "transparent",
-        cursor: "pointer",
-        marginBottom: "1.5rem",
-        transition: "all 0.15s",
-      }}>
+      <label className={`recommendation-confirm ${confirmed ? "is-confirmed" : ""}`}>
         <input
           type="checkbox" checked={confirmed}
           onChange={(e) => setConfirmed(e.target.checked)}
-          style={{ marginTop: 3, flexShrink: 0, accentColor: "var(--c-blue-500)", width: 16, height: 16 }}
         />
-        <span style={{ fontSize: "0.9rem", color: "var(--c-text-1)", lineHeight: 1.5 }}>
+        <span>
           Confirmo que as recomendações mínimas foram verificadas.
         </span>
       </label>
 
-      <button
-        className="btn btn--primary btn--full btn--lg"
-        onClick={onConfirm}
-        disabled={!confirmed || loading}
-      >
-        {loading ? "Registrando..." : "Confirmar e seguir para as tarefas →"}
-      </button>
     </div>
+
+      <div className="flow-action-row flow-action-row--split">
+        <button
+          type="button"
+          className="flow-secondary-button"
+          onClick={onBack}
+        >
+          Voltar
+        </button>
+        <button
+          className="flow-next-button"
+          onClick={onConfirm}
+          disabled={!confirmed || loading}
+        >
+          {loading ? "Registrando..." : "Próximo"}
+        </button>
+      </div>
+    </>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Página principal
-// ---------------------------------------------------------------------------
 export default function Checklist() {
   const { sessionId } = useParams();
-  const navigate      = useNavigate();
-  const [phase,    setPhase]    = useState("screening");   // "screening" | "recommendations"
-  const [screening, setScreening] = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const draftKey = `psv_screening_${sessionId}`;
+  const [phase, setPhase] = useState(
+    new URLSearchParams(location.search).get("etapa") === "recomendacoes"
+      ? "recommendations"
+      : "screening"
+  );
+  const [screening, setScreening] = useState(() => loadScreeningDraft(sessionId));
+  const [checklistSubmitted, setChecklistSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [checking, setChecking] = useState(true);
 
-  // Se o checklist já foi submetido, pula direto para as tasks
   useEffect(() => {
     sessionsApi.summary(sessionId)
       .then((summary) => {
         if (summary.checklist) {
-          navigate(`/sessions/${sessionId}/tasks`, { replace: true });
+          setChecklistSubmitted(true);
+          const stored = parseStoredScreening(summary.checklist.raw_responses);
+          if (stored) {
+            setScreening(stored);
+            localStorage.setItem(draftKey, JSON.stringify(stored));
+          }
         }
       })
       .catch(() => {})
       .finally(() => setChecking(false));
-  }, [sessionId, navigate]);
+  }, [sessionId, draftKey]);
 
-  const handleScreeningNext = (screeningData) => {
+  useEffect(() => {
+    setPhase(
+      new URLSearchParams(location.search).get("etapa") === "recomendacoes"
+        ? "recommendations"
+        : "screening"
+    );
+  }, [location.search]);
+
+  const saveDraft = useCallback((screeningData) => {
     setScreening(screeningData);
+    localStorage.setItem(draftKey, JSON.stringify(screeningData));
+  }, [draftKey]);
+
+  const handleScreeningNext = async (screeningData) => {
+    saveDraft(screeningData);
+    setError("");
+
+    if (!checklistSubmitted) {
+      setLoading(true);
+      try {
+        await checklistApi.submit(sessionId, buildChecklistPayload(screeningData));
+        setChecklistSubmitted(true);
+      } catch (err) {
+        const detail = err.response?.data?.detail || "";
+        if (detail.includes("já foi submetido") || detail.includes("jÃ¡ foi submetido")) {
+          setChecklistSubmitted(true);
+        } else {
+          setError(detail || "Erro ao registrar triagem");
+          setLoading(false);
+          return;
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
     setPhase("recommendations");
+    navigate(`/sessions/${sessionId}/checklist?etapa=recomendacoes`);
+  };
+
+  const handleRecommendationsBack = () => {
+    setPhase("screening");
+    navigate(`/sessions/${sessionId}/checklist`);
   };
 
   const handleConfirm = async () => {
+    if (checklistSubmitted) {
+      navigate(`/sessions/${sessionId}/tasks`);
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
-      // Salva a triagem como checklist (usando campo responses para compatibilidade)
-      const payload = screening
-        ? Object.fromEntries(Object.entries(screening).map(([k, v], i) => [i + 1, typeof v === "string" ? v : JSON.stringify(v)]))
-        : { 1: "triagem_concluida" };
-      await checklistApi.submit(sessionId, payload);
+      await checklistApi.submit(sessionId, buildChecklistPayload(screening));
+      setChecklistSubmitted(true);
       navigate(`/sessions/${sessionId}/tasks`);
     } catch (err) {
       const detail = err.response?.data?.detail || "";
@@ -512,6 +588,7 @@ export default function Checklist() {
         <main className="container mt-4" style={{ maxWidth: 720 }}>
           <p className="text-muted text-small text-center">Carregando sessão...</p>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -519,17 +596,33 @@ export default function Checklist() {
   return (
     <div className="page">
       <Navbar />
-      <main className="container mt-4" style={{ maxWidth: 680 }}>
-        <Stepper phase={phase} />
+      <main className="container mt-4" style={{ maxWidth: 760 }}>
+        <FlowSteps
+          sessionId={sessionId}
+          current={phase === "recommendations" ? "recomendacoes" : "triagem"}
+          completed={phase === "recommendations" ? ["triagem"] : []}
+        />
         {error && (
           <p className="form-error" style={{ marginBottom: "1rem" }}>{error}</p>
         )}
         {phase === "screening" ? (
-          <VisualScreening onNext={handleScreeningNext} />
+          <VisualScreening
+            onNext={handleScreeningNext}
+            onBack={() => navigate("/")}
+            initialData={screening}
+            onChange={saveDraft}
+            locked={checklistSubmitted}
+            saving={loading}
+          />
         ) : (
-          <MinRecommendations onConfirm={handleConfirm} loading={loading} />
+          <MinRecommendations
+            onConfirm={handleConfirm}
+            onBack={handleRecommendationsBack}
+            loading={loading}
+          />
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

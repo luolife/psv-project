@@ -1,43 +1,54 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/client";
+import { PsvLogo } from "../components/Navbar";
+import { COUNTRY_OPTIONS, getCityOptions, getStateOptions } from "../data/locations";
 
-const PROFESSIONS = [
-  "Terapeuta Ocupacional", "Psicólogo(a)", "Fonoaudiólogo(a)",
-  "Neurologista", "Psiquiatra", "Neuropsicólogo(a)", "Outro",
-];
-const COUNCILS = ["CREFITO", "CRP", "CRFa", "CFM", "CRM", "Outro"];
 const AREAS = [
   "ABA (Análise do Comportamento Aplicada)",
   "Neuropsicologia", "Reabilitação Sensorial",
   "Terapia Ocupacional Pediátrica", "Psicomotricidade",
   "Saúde Mental Infantil", "Outro",
 ];
+const PROFESSIONS = [
+  "Terapeuta Ocupacional", "Psicólogo(a)", "Fonoaudiólogo(a)",
+  "Neurologista", "Psiquiatra", "Neuropsicólogo(a)", "Outro",
+];
+const COUNCILS = ["CREFITO", "CRP", "CRFa", "CFM", "CRM", "Outro"];
 const TITULATIONS = [
   "Graduação", "Especialização", "Mestrado", "Doutorado", "Pós-doutorado",
 ];
+const TERM_TEXT = `Ao criar uma conta no Protocolo Sensorial Visual (PSV), o profissional declara ter lido, compreendido e aceitado o Termo de Uso Profissional do PSV, bem como declara ciência da Política de Privacidade da plataforma.
 
-const TERM_VERSION = "1.0";
-
-const TERM_TEXT = `O PSV é um protocolo computadorizado de apoio à investigação e caracterização do processamento sensorial visual. Seus resultados devem ser interpretados por profissional habilitado e não substituem avaliação clínica, psicológica, neuropsicológica, médica ou oftalmológica completa.
+O PSV é uma ferramenta digital de apoio técnico à investigação e caracterização descritiva do processamento sensorial visual. Seus resultados possuem caráter complementar, devem ser interpretados por profissional habilitado e não substituem avaliação clínica, psicológica, neuropsicológica, médica, oftalmológica, educacional ou funcional completa.
 
 Ao prosseguir, o profissional declara que:
 
-1. Possui formação e habilitação profissional compatíveis com o uso do PSV em sua área de atuação.
+1. Possui formação, habilitação ou competência técnica compatível com o uso do PSV em sua área de atuação;
 
-2. Utilizará o PSV de forma ética, responsável e compatível com sua finalidade científica, clínica ou institucional.
+2. Utilizará o PSV de forma ética, responsável e compatível com sua finalidade técnica, científica, clínica, educacional ou institucional.
 
-3. É responsável pelas informações inseridas no sistema, pela condução adequada da aplicação e pela interpretação técnica dos resultados gerados.
+3. Reconhece que o PSV não possui finalidade diagnóstica isolada e não deve ser utilizado como fonte única para emissão de diagnóstico, laudo, parecer conclusivo, seleção, exclusão, restrição de direitos ou tomada de decisão isolada;
 
-4. Compromete-se a seguir as Recomendações Mínimas para Aplicação, incluindo condições adequadas de ambiente, equipamento, posicionamento do participante e interrupção da tarefa em caso de desconforto.
+4. É responsável pelas informações inseridas no sistema, pela condução adequada da aplicação, pela interpretação técnica dos resultados gerados e pelo uso dos documentos emitidos pela plataforma;
 
-5. Compromete-se a obter o consentimento livre e esclarecido do participante ou de seu responsável legal, quando aplicável.
+5. Compromete-se a seguir as Recomendações Mínimas para Aplicação e os parâmetros técnicos, operacionais e ético-legais do PSV, incluindo condições adequadas de ambiente, equipamento, sistema operacional, navegador, tela, conexão com a internet, dispositivo de resposta, posicionamento do participante, instrução prévia e interrupção da tarefa em caso de desconforto, fadiga, mal-estar ou solicitação do participante;
 
-6. Autoriza o registro eletrônico de seu aceite, com armazenamento dos dados necessários para comprovação da concordância com este termo, incluindo nome completo, CPF, profissão, conselho profissional, número de registro, e-mail, data e horário do aceite, versão do termo e código de verificação.
+6. Compromete-se a obter autorização, assentimento, consentimento informado ou consentimento livre e esclarecido do participante ou de seu responsável legal, quando aplicável;
 
-7. Compromete-se a preservar a privacidade, a confidencialidade e a segurança dos dados inseridos no sistema, conforme a Lei Geral de Proteção de Dados Pessoais — LGPD, Lei nº 13.709/2018.
+7. Compromete-se a preservar a privacidade, a confidencialidade e a segurança dos dados inseridos no sistema, observando a legislação brasileira de proteção de dados pessoais;
 
-8. Reconhece que o uso inadequado do PSV, a aplicação fora das condições recomendadas ou a interpretação indevida dos resultados são de responsabilidade do profissional aplicador.`;
+8. Declara ciência e concordância com o registro eletrônico de seu aceite, incluindo nome completo, CPF, profissão, área de atuação, conselho profissional, número de registro, e-mail, data e horário do aceite, versão dos documentos aceitos, endereço IP, identificadores técnicos do acesso e código de verificação, quando disponíveis;
+
+9. Reconhece que o uso inadequado do PSV, a aplicação fora das condições recomendadas, a inserção incorreta de dados ou a interpretação indevida dos resultados são de responsabilidade do profissional aplicador.
+
+10. Declara ciência de que os dados e relatórios gerados pela plataforma poderão permanecer armazenados em ambiente digital seguro por até 60 dias contados da data de geração do relatório, com a finalidade de permitir acesso pelo profissional, download do relatório, manutenção do histórico de aplicações, rastreabilidade técnica, suporte operacional e funcionamento adequado da plataforma;
+
+11. Declara ciência e concordância de que dados gerados pelo uso do PSV poderão ser utilizados, de forma anonimizada ou agregada, para fins de aprimoramento técnico da plataforma, análise de usabilidade, desenvolvimento do produto, segurança do sistema, produção de estatísticas internas e estudos futuros, sem identificação direta dos participantes ou profissionais;
+
+12. Reconhece que a visualização dos resultados e a emissão dos relatórios em PDF devem ocorrer mediante revisão e confirmação profissional, cabendo ao aplicador analisar os dados apresentados, as condições de aplicação, eventuais intercorrências e os limites metodológicos do PSV. Após visualização, download, impressão, envio, arquivamento ou anexação a registros profissionais, a guarda, a confidencialidade, a proteção e a utilização adequada do relatório passam a ser de responsabilidade do profissional aplicador.
+
+Ao finalizar o cadastro, o aceite eletrônico será registrado e os documentos ficarão disponíveis para consulta no ambiente do profissional, na área Documentos e Aceites.`;
 
 function maskCPF(value) {
   return value
@@ -100,14 +111,11 @@ async function generateTermPdf(formData, acceptedAt, verificationCode) {
   y += 1;
 
   const fields = [
-    ["Nome completo", formData.name],
+    ["Nome e Sobrenome", formData.name],
     ["CPF", formData.cpf],
+    ["Área de Atuação", formData.area || "—"],
+    ["Registro Profissional", formData.council_register || "—"],
     ["E-mail", formData.email],
-    ["Profissão", formData.profession],
-    ["Conselho profissional", formData.council],
-    ["Número de registro", formData.council_register || "—"],
-    ["Instituição/serviço", formData.institution || "—"],
-    ["Área de atuação", formData.area || "—"],
   ];
 
   fields.forEach(([label, value]) => {
@@ -135,7 +143,6 @@ async function generateTermPdf(formData, acceptedAt, verificationCode) {
   [
     ["Data do aceite", acceptDate],
     ["Horário do aceite", acceptTime],
-    ["Versão do termo", TERM_VERSION],
     ["Código de verificação", verificationCode],
   ].forEach(([label, value]) => {
     if (y > 270) { doc.addPage(); y = 20; }
@@ -176,21 +183,82 @@ async function generateTermPdf(formData, acceptedAt, verificationCode) {
   doc.save(`PSV_Termo_Aceite_${formData.name?.replace(/\s+/g, "_") || "profissional"}.pdf`);
 }
 
+function downloadFile(path, filename) {
+  const link = document.createElement("a");
+  link.href = path;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function joinName(firstName, lastName) {
+  return [firstName, lastName].map((part) => part.trim()).filter(Boolean).join(" ");
+}
+
+function humanizeValidationMessage(message) {
+  const text = String(message).replace(/^Value error,\s*/i, "");
+  const lower = text.toLowerCase();
+
+  if (lower.includes("email address") || lower.includes("valid email")) {
+    return "Informe um e-mail válido, com @ e domínio.";
+  }
+  if (lower.includes("password") || lower.includes("senha")) {
+    return "A senha deve ter, no mínimo, 8 caracteres.";
+  }
+  if (lower.includes("field required")) {
+    return "Preencha todos os campos obrigatórios.";
+  }
+
+  return text;
+}
+
+function getErrorMessage(err) {
+  const detail = err.response?.data?.detail;
+  if (typeof detail === "string") return humanizeValidationMessage(detail);
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => humanizeValidationMessage(item?.msg || item?.message || String(item)))
+      .join(" ");
+  }
+  if (detail && typeof detail === "object") {
+    return humanizeValidationMessage(detail.msg || detail.message || "Erro ao criar conta");
+  }
+  return "Erro ao criar conta";
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: "", cpf: "", email: "", password: "",
+    first_name: "", last_name: "", cpf: "", email: "", secondary_email: "", password: "",
     profession: "", council: "", council_register: "",
     area: "", titulation: "", institution: "",
+    country: "", state: "", city: "",
   });
   const [termAccepted, setTermAccepted] = useState(false);
+  const [termRead, setTermRead] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handle = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "country" ? { state: "", city: "" } : {}),
+      ...(name === "state" ? { city: "" } : {}),
+    }));
+  };
 
   const handleCPF = (e) => {
     setForm({ ...form, cpf: maskCPF(e.target.value) });
+  };
+
+  const handleTermScroll = (e) => {
+    const el = e.currentTarget;
+    const reachedEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+    if (reachedEnd) setTermRead(true);
   };
 
   const submit = async (e) => {
@@ -202,44 +270,94 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      await authApi.register(form);
+      const payload = { ...form, name: joinName(form.first_name, form.last_name) };
+      delete payload.first_name;
+      delete payload.last_name;
+      payload.email = payload.email.trim();
+      payload.secondary_email = payload.secondary_email.trim() || null;
+      await authApi.register(payload);
+      setRegistrationComplete(true);
+      return;
       // Gera PDF de comprovação
       const acceptedAt = new Date();
       const verificationCode = generateVerificationCode();
       try {
-        await generateTermPdf(form, acceptedAt, verificationCode);
+        await generateTermPdf(payload, acceptedAt, verificationCode);
+        downloadFile("/documents/manual-tecnico.pdf", "Manual_Tecnico_PSV.pdf");
+        downloadFile("/documents/contrato-abnt.pdf", "Termo_Uso_Profissional_PSV.pdf");
       } catch (pdfErr) {
-        console.warn("Erro ao gerar PDF do termo:", pdfErr);
+        console.warn("Erro ao gerar PDFs do cadastro:", pdfErr);
       }
       navigate("/login");
     } catch (err) {
-      setError(err.response?.data?.detail || "Erro ao criar conta");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
+  const stateOptions = getStateOptions(form.country);
+  const cityOptions = getCityOptions(form.country, form.state);
+
   return (
     <div className="auth-page">
-      <div className="auth-card" style={{ maxWidth: 560 }}>
+      <div className="auth-card" style={{ maxWidth: 720 }}>
         <div className="auth-header">
-          <div className="auth-header__logo">PSV</div>
-          <div className="auth-header__sub">Cadastro do profissional</div>
+          <h2 className="auth-screen-title">Cadastro do Profissional</h2>
         </div>
 
         <form className="auth-form" onSubmit={submit}>
 
-          <div className="form-group">
-            <label className="form-label">Nome completo</label>
-            <input className="form-input" name="name" value={form.name}
-              onChange={handle} required />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Nome</label>
+              <input className="form-input" name="first_name" value={form.first_name}
+                onChange={handle} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Sobrenome</label>
+              <input className="form-input" name="last_name" value={form.last_name}
+                onChange={handle} required />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">CPF</label>
             <input className="form-input" name="cpf" value={form.cpf}
-              onChange={handleCPF} placeholder="000.000.000-00"
-              inputMode="numeric" required />
+              onChange={handleCPF} inputMode="numeric" required />
+          </div>
+
+          <div className="location-grid">
+            <div className="form-group">
+              <label className="form-label">País</label>
+              <select className="form-select" name="country"
+                value={form.country} onChange={handle} required>
+                <option value="">Selecione...</option>
+                {COUNTRY_OPTIONS.map((country) => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Estado</label>
+              <select className="form-select" name="state"
+                value={form.state} onChange={handle} required disabled={!form.country}>
+                <option value="">Selecione...</option>
+                {stateOptions.map((state) => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cidade</label>
+              <select className="form-select" name="city"
+                value={form.city} onChange={handle} required disabled={!form.state}>
+                <option value="">Selecione...</option>
+                {cityOptions.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="form-row">
@@ -252,47 +370,44 @@ export default function Register() {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Conselho</label>
-              <select className="form-select" name="council"
-                value={form.council} onChange={handle}>
+              <label className="form-label">Área de Atuação</label>
+              <select className="form-select" name="area"
+                value={form.area} onChange={handle} required>
                 <option value="">Selecione...</option>
-                {COUNCILS.map((c) => <option key={c}>{c}</option>)}
+                {AREAS.map((a) => <option key={a}>{a}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Registro profissional</label>
-            <input className="form-input" name="council_register"
-              value={form.council_register} onChange={handle} />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Área de atuação</label>
-            <select className="form-select" name="area"
-              value={form.area} onChange={handle}>
-              <option value="">Selecione...</option>
-              {AREAS.map((a) => <option key={a}>{a}</option>)}
-            </select>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Conselho</label>
+              <select className="form-select" name="council"
+                value={form.council} onChange={handle} required>
+                <option value="">Selecione...</option>
+                {COUNCILS.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Número de Registro</label>
+              <input className="form-input" name="council_register"
+                value={form.council_register} onChange={handle} required />
+            </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">
-                Titulação <span className="text-muted text-small">— opcional</span>
-              </label>
+              <label className="form-label">Titulação</label>
               <select className="form-select" name="titulation"
-                value={form.titulation} onChange={handle}>
+                value={form.titulation} onChange={handle} required>
                 <option value="">Selecione...</option>
                 {TITULATIONS.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">
-                Instituição <span className="text-muted text-small">— opcional</span>
-              </label>
+              <label className="form-label">Instituição</label>
               <input className="form-input" name="institution"
-                value={form.institution} onChange={handle} />
+                value={form.institution} onChange={handle} required />
             </div>
           </div>
 
@@ -303,14 +418,22 @@ export default function Register() {
                 value={form.email} onChange={handle} required />
             </div>
             <div className="form-group">
+              <label className="form-label">
+                E-mail Secundário <span className="text-muted text-small">— opcional</span>
+              </label>
+              <input className="form-input" type="email" name="secondary_email"
+                value={form.secondary_email} onChange={handle} />
+            </div>
+          </div>
+
+          <div className="form-group">
               <label className="form-label">Senha</label>
               <input className="form-input" type="password" name="password"
                 value={form.password} onChange={handle}
                 placeholder="Mín. 8 caracteres" required />
-            </div>
           </div>
 
-          {/* Termo de Uso e Responsabilidade Técnica */}
+          {/* Termo de Uso Profissional e Política de Privacidade */}
           <div style={{
             border: "1px solid var(--c-border)",
             borderRadius: "var(--radius-md)",
@@ -320,48 +443,48 @@ export default function Register() {
               background: "var(--c-bg)",
               padding: "0.75rem 1rem",
               borderBottom: "1px solid var(--c-border)",
+              textAlign: "center",
             }}>
               <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--c-text-1)" }}>
-                Termo de Uso e Responsabilidade Técnica
-              </span>
-              <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "var(--c-text-3)" }}>
-                Versão {TERM_VERSION}
+                Termo de Uso Profissional e Política de Privacidade
               </span>
             </div>
             <div style={{
               padding: "1rem",
               fontSize: "0.8rem", color: "var(--c-text-2)",
               maxHeight: 240, overflowY: "auto", lineHeight: 1.7,
-            }}>
-              <p style={{ marginBottom: "0.75rem" }}>
-                Ao criar uma conta no Protocolo Sensorial Visual (PSV), o profissional declara estar ciente
-                das condições de uso, dos limites técnicos do protocolo e de sua responsabilidade na
-                aplicação, interpretação e proteção dos dados inseridos no sistema.
+            }} onScroll={handleTermScroll}>
+              <p style={{ marginBottom: "0.75rem", textAlign: "justify" }}>
+                Ao criar uma conta no Protocolo Sensorial Visual (PSV), o profissional declara ter lido, compreendido e aceitado o Termo de Uso Profissional do PSV, bem como declara ciência da Política de Privacidade da plataforma.
               </p>
-              <p style={{ marginBottom: "0.75rem" }}>
-                O PSV é um protocolo computadorizado de apoio à investigação e caracterização do
-                processamento sensorial visual. Seus resultados devem ser interpretados por profissional
-                habilitado e não substituem avaliação clínica, psicológica, neuropsicológica, médica ou
-                oftalmológica completa.
+              <p style={{ marginBottom: "0.75rem", textAlign: "justify" }}>
+                O PSV é uma ferramenta digital de apoio técnico à investigação e caracterização descritiva do processamento sensorial visual. Seus resultados possuem caráter complementar, devem ser interpretados por profissional habilitado e não substituem avaliação clínica, psicológica, neuropsicológica, médica, oftalmológica, educacional ou funcional completa.
               </p>
               <p style={{ marginBottom: "0.5rem", fontWeight: 600, color: "var(--c-text-1)" }}>
                 Ao prosseguir, o profissional declara que:
               </p>
               {[
-                "Possui formação e habilitação profissional compatíveis com o uso do PSV em sua área de atuação.",
-                "Utilizará o PSV de forma ética, responsável e compatível com sua finalidade científica, clínica ou institucional.",
-                "É responsável pelas informações inseridas no sistema, pela condução adequada da aplicação e pela interpretação técnica dos resultados gerados.",
-                "Compromete-se a seguir as Recomendações Mínimas para Aplicação, incluindo condições adequadas de ambiente, equipamento, posicionamento do participante e interrupção da tarefa em caso de desconforto.",
-                "Compromete-se a obter o consentimento livre e esclarecido do participante ou de seu responsável legal, quando aplicável.",
-                "Autoriza o registro eletrônico de seu aceite, com armazenamento dos dados necessários para comprovação da concordância com este termo, incluindo nome completo, CPF, profissão, conselho profissional, número de registro, e-mail, data e horário do aceite, versão do termo e código de verificação.",
-                "Compromete-se a preservar a privacidade, a confidencialidade e a segurança dos dados inseridos no sistema, conforme a Lei Geral de Proteção de Dados Pessoais — LGPD, Lei nº 13.709/2018.",
-                "Reconhece que o uso inadequado do PSV, a aplicação fora das condições recomendadas ou a interpretação indevida dos resultados são de responsabilidade do profissional aplicador.",
+                "Possui formação, habilitação ou competência técnica compatível com o uso do PSV em sua área de atuação;",
+                "Utilizará o PSV de forma ética, responsável e compatível com sua finalidade técnica, científica, clínica, educacional ou institucional.",
+                "Reconhece que o PSV não possui finalidade diagnóstica isolada e não deve ser utilizado como fonte única para emissão de diagnóstico, laudo, parecer conclusivo, seleção, exclusão, restrição de direitos ou tomada de decisão isolada;",
+                "É responsável pelas informações inseridas no sistema, pela condução adequada da aplicação, pela interpretação técnica dos resultados gerados e pelo uso dos documentos emitidos pela plataforma;",
+                "Compromete-se a seguir as Recomendações Mínimas para Aplicação e os parâmetros técnicos, operacionais e ético-legais do PSV, incluindo condições adequadas de ambiente, equipamento, sistema operacional, navegador, tela, conexão com a internet, dispositivo de resposta, posicionamento do participante, instrução prévia e interrupção da tarefa em caso de desconforto, fadiga, mal-estar ou solicitação do participante;",
+                "Compromete-se a obter autorização, assentimento, consentimento informado ou consentimento livre e esclarecido do participante ou de seu responsável legal, quando aplicável;",
+                "Compromete-se a preservar a privacidade, a confidencialidade e a segurança dos dados inseridos no sistema, observando a legislação brasileira de proteção de dados pessoais;",
+                "Declara ciência e concordância com o registro eletrônico de seu aceite, incluindo nome completo, CPF, profissão, área de atuação, conselho profissional, número de registro, e-mail, data e horário do aceite, versão dos documentos aceitos, endereço IP, identificadores técnicos do acesso e código de verificação, quando disponíveis;",
+                "Reconhece que o uso inadequado do PSV, a aplicação fora das condições recomendadas, a inserção incorreta de dados ou a interpretação indevida dos resultados são de responsabilidade do profissional aplicador.",
+                "Declara ciência de que os dados e relatórios gerados pela plataforma poderão permanecer armazenados em ambiente digital seguro por até 60 dias contados da data de geração do relatório, com a finalidade de permitir acesso pelo profissional, download do relatório, manutenção do histórico de aplicações, rastreabilidade técnica, suporte operacional e funcionamento adequado da plataforma;",
+                "Declara ciência e concordância de que dados gerados pelo uso do PSV poderão ser utilizados, de forma anonimizada ou agregada, para fins de aprimoramento técnico da plataforma, análise de usabilidade, desenvolvimento do produto, segurança do sistema, produção de estatísticas internas e estudos futuros, sem identificação direta dos participantes ou profissionais;",
+                "Reconhece que a visualização dos resultados e a emissão dos relatórios em PDF devem ocorrer mediante revisão e confirmação profissional, cabendo ao aplicador analisar os dados apresentados, as condições de aplicação, eventuais intercorrências e os limites metodológicos do PSV. Após visualização, download, impressão, envio, arquivamento ou anexação a registros profissionais, a guarda, a confidencialidade, a proteção e a utilização adequada do relatório passam a ser de responsabilidade do profissional aplicador.",
               ].map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <div key={i} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem", marginLeft: "5%" }}>
                   <span style={{ color: "var(--c-blue-500)", fontWeight: 600, flexShrink: 0 }}>{i + 1}.</span>
-                  <span>{item}</span>
+                  <span style={{ textAlign: "justify" }}>{item}</span>
                 </div>
               ))}
+              <p style={{ marginTop: "0.75rem", marginBottom: 0, textAlign: "justify" }}>
+                Ao finalizar o cadastro, o aceite eletrônico será registrado e os documentos ficarão disponíveis para consulta no ambiente do profissional, na área Documentos e Aceites.
+              </p>
             </div>
 
             <div style={{
@@ -371,17 +494,19 @@ export default function Register() {
             }}>
               <label style={{
                 display: "flex", alignItems: "flex-start", gap: "0.75rem",
-                fontSize: "0.85rem", color: "var(--c-text-1)", cursor: "pointer",
+                fontSize: "0.85rem", color: termRead ? "var(--c-text-1)" : "var(--c-text-4)",
+                cursor: termRead ? "pointer" : "default",
+                opacity: termRead ? 1 : 0.72,
               }}>
                 <input
                   type="checkbox"
                   checked={termAccepted}
+                  disabled={!termRead}
                   onChange={(e) => setTermAccepted(e.target.checked)}
                   style={{ marginTop: 3, flexShrink: 0, accentColor: "var(--c-blue-500)", width: 15, height: 15 }}
                 />
-                <span>
-                  Declaro que li e aceito o Termo de Uso e Responsabilidade Técnica do PSV,
-                  responsabilizando-me pelo uso adequado do protocolo e autorizando o registro eletrônico do aceite.
+                <span style={{ textAlign: "justify" }}>
+                  Declaro que li e aceito o Termo de Uso Profissional e a Política de Privacidade do PSV, responsabilizando-me pelo uso adequado do protocolo e autorizando o registro eletrônico do aceite.
                 </span>
               </label>
             </div>
@@ -391,7 +516,7 @@ export default function Register() {
 
           <button className="btn btn--primary btn--full btn--lg"
             type="submit" disabled={loading || !termAccepted}>
-            {loading ? "Criando conta..." : "Aceitar e concluir cadastro"}
+            {loading ? "Criando conta..." : "Cadastrar"}
           </button>
         </form>
 
@@ -399,6 +524,36 @@ export default function Register() {
           Já tem conta? <Link to="/login">Entrar</Link>
         </div>
       </div>
+
+      {registrationComplete && (
+        <div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="registration-modal-title">
+          <div className="registration-modal__card">
+            <div className="registration-modal__brand" aria-hidden="true">
+              <PsvLogo size={70} />
+              <span>PSV</span>
+            </div>
+            <h2 id="registration-modal-title">Cadastro Concluído</h2>
+            <p>
+              O Termo de Uso Profissional e a Política de Privacidade foram registrados e ficarão disponíveis para consulta no ambiente do profissional, na área de Documentos.
+            </p>
+            <div className="registration-modal__info">
+              <span>Visualizar</span>
+              <span>Baixar</span>
+              <span>Consultar</span>
+            </div>
+            <p className="registration-modal__note">
+              Após entrar no PSV, acesse o menu do perfil e selecione Documentos para visualizar ou baixar os arquivos.
+            </p>
+            <button
+              type="button"
+              className="flow-next-button"
+              onClick={() => navigate("/login")}
+            >
+              Entrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

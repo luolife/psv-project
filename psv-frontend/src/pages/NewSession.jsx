@@ -1,10 +1,24 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SiteFooter from "../components/SiteFooter";
 import { participantsApi, sessionsApi } from "../api/client";
+import { COUNTRY_OPTIONS, getCityOptions, getStateOptions } from "../data/locations";
 
 const SEX_LABELS = { M: "Masculino", F: "Feminino", O: "Outro" };
-
+const DIAGNOSIS_OPTIONS = [
+  "Transtorno do Espectro Autista",
+  "TDAH",
+  "Deficiência Intelectual",
+  "Atraso Global do Desenvolvimento",
+  "Transtorno do Desenvolvimento da Coordenação",
+  "Transtorno de Ansiedade",
+  "Epilepsia",
+  "Paralisia Cerebral",
+  "Síndrome Genética",
+  "Transtorno de Aprendizagem",
+  "Outro",
+];
 function calcAge(birthdate) {
   if (!birthdate) return null;
   const today = new Date();
@@ -15,41 +29,45 @@ function calcAge(birthdate) {
   return age;
 }
 
+function joinName(firstName, lastName) {
+  return [firstName, lastName].map((part) => part.trim()).filter(Boolean).join(" ");
+}
+
 function Stepper() {
   const steps = [
-    { n: 1, label: "Participante",  active: true  },
-    { n: 2, label: "Triagem Visual", active: false },
-    { n: 3, label: "Recomendações", active: false },
-    { n: 4, label: "Tarefas",       active: false },
-    { n: 5, label: "Resultados",    active: false },
+    { n: 1, label: "Triagem", active: true },
+    { n: 2, label: "Recomendações", active: false },
+    { n: 3, label: "Tarefas", active: false },
+    { n: 4, label: "Resultados", active: false },
   ];
   return (
-    <div className="stepper">
-      {steps.map((s, i) => (
-        <div key={s.n} className="stepper__step">
-          <div className={`stepper__dot ${s.active ? "stepper__dot--active" : "stepper__dot--pending"}`}>
+    <div className="evaluation-preview-steps">
+      {steps.map((s) => (
+        <div key={s.n} className={`evaluation-preview-steps__item ${s.active ? "is-active" : ""}`}>
+          <div className="evaluation-preview-steps__dot">
             {s.n}
           </div>
-          <span className="stepper__label">{s.label}</span>
-          {i < steps.length - 1 && <div className="stepper__line" />}
+          <span>{s.label}</span>
         </div>
       ))}
     </div>
   );
 }
 
-function SelectParticipant({ participants, onSelect, onNew }) {
+function SelectParticipant({ participants, onSelect, onNew, onBack }) {
   const [search, setSearch] = useState("");
   const filtered = participants.filter((p) =>
     p.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="card">
-      <h2 className="mb-1">Selecionar participante</h2>
-      <p className="text-muted text-small mb-2">
-        Escolha um participante já cadastrado ou crie um novo.
-      </p>
+    <>
+      <div className="card participant-form-card">
+      <div className="participant-form-header">
+        <span aria-hidden="true" />
+        <h2 className="participant-form-title">Nova Avaliação</h2>
+        <span aria-hidden="true" />
+      </div>
       <div className="form-group mb-2">
         <input className="form-input" placeholder="Buscar por nome..."
           value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
@@ -59,136 +77,174 @@ function SelectParticipant({ participants, onSelect, onNew }) {
           {search ? `Nenhum resultado para "${search}".` : "Nenhum participante cadastrado ainda."}
         </p>
       ) : (
-        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+        <ul className="participant-select-list">
           {filtered.map((p) => {
-            const age = calcAge(p.birthdate);
             return (
-              <li key={p.id} onClick={() => onSelect(p)} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "0.75rem 1rem", borderRadius: "var(--radius-md)",
-                border: "1.5px solid var(--c-border)", cursor: "pointer",
-                transition: "border-color 0.15s, background 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--c-blue-500)"; e.currentTarget.style.background = "var(--c-blue-50)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--c-border)"; e.currentTarget.style.background = "transparent"; }}
-              >
-                <div>
-                  <span style={{ fontWeight: 500 }}>{p.name}</span>
-                  <span className="text-muted text-small" style={{ marginLeft: "0.75rem" }}>
-                    {age !== null ? `${age} anos` : ""}
-                    {p.sex ? ` · ${SEX_LABELS[p.sex] || p.sex}` : ""}
-                    {p.diagnosis_cid ? ` · ${p.diagnosis_cid}` : ""}
-                    {p.city ? ` · ${p.city}` : ""}
-                  </span>
+              <li key={p.id} onClick={() => onSelect(p)} className="participant-select-card">
+                <div className="participant-select-card__main">
+                  <span className="participant-select-card__name">{p.name}</span>
                 </div>
-                <span style={{ fontSize: "0.8rem", color: "var(--c-blue-500)", fontWeight: 500 }}>
-                  Selecionar →
-                </span>
+                <span className="participant-select-card__action">Selecionar</span>
               </li>
             );
           })}
         </ul>
       )}
-      <div style={{ borderTop: "1px solid var(--c-border)", paddingTop: "1rem",
-        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span className="text-muted text-small">Participante não está na lista?</span>
-        <button className="btn btn--primary btn--sm" onClick={onNew}>+ Novo participante</button>
-      </div>
     </div>
+      <div className="flow-action-row flow-action-row--split">
+        <button type="button" className="flow-secondary-button flow-next-button--compact" onClick={onBack}>
+          Voltar
+        </button>
+        <button className="flow-next-button flow-next-button--compact" onClick={onNew}>Cadastro do Participante</button>
+      </div>
+    </>
   );
 }
 
 function ConfirmParticipant({ participant, onConfirm, onBack, loading }) {
   const age = calcAge(participant.birthdate);
+  const patientDetails = [
+    {
+      label: "Nascimento",
+      value: participant.birthdate
+        ? `${new Date(participant.birthdate + "T00:00:00").toLocaleDateString("pt-BR")}${age !== null ? ` · ${age} anos` : ""}`
+        : "—",
+    },
+    { label: "Sexo", value: SEX_LABELS[participant.sex] || participant.sex || "—" },
+    participant.diagnosis_cid ? { label: "Diagnóstico", value: participant.diagnosis_cid } : null,
+    participant.medication_notes ? { label: "Medicação", value: participant.medication_notes } : null,
+    (participant.city || participant.state || participant.country)
+      ? { label: "Localização", value: [participant.city, participant.state, participant.country].filter(Boolean).join(" · ") }
+      : null,
+    participant.notes ? { label: "Observações", value: participant.notes } : null,
+  ].filter(Boolean);
+
   return (
-    <div className="card">
-      <h2 className="mb-1">Confirmar participante</h2>
-      <p className="text-muted text-small mb-3">Verifique os dados antes de iniciar.</p>
-      <div style={{
-        background: "var(--c-blue-50)", border: "1.5px solid var(--c-blue-100)",
-        borderRadius: "var(--radius-md)", padding: "1.25rem",
-        display: "grid", gridTemplateColumns: "1fr 1fr",
-        gap: "0.75rem 1.5rem", marginBottom: "1.5rem",
-      }}>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <div className="text-muted text-small">Nome</div>
-          <div style={{ fontWeight: 500, fontSize: "1.05rem" }}>{participant.name}</div>
-        </div>
-        <div>
-          <div className="text-muted text-small">Nascimento</div>
-          <div style={{ fontWeight: 500 }}>
-            {participant.birthdate
-              ? new Date(participant.birthdate + 'T00:00:00').toLocaleDateString("pt-BR")
-              : "—"}
-            {age !== null
-              ? <span className="text-muted text-small" style={{ marginLeft: "0.5rem" }}>({age} anos)</span>
-              : ""}
-          </div>
-        </div>
-        <div>
-          <div className="text-muted text-small">Sexo</div>
-          <div style={{ fontWeight: 500 }}>{SEX_LABELS[participant.sex] || participant.sex}</div>
-        </div>
-        {participant.diagnosis_cid && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div className="text-muted text-small">Diagnóstico (CID)</div>
-            <div style={{ fontWeight: 500 }}>{participant.diagnosis_cid}</div>
-          </div>
-        )}
-        {(participant.city || participant.state || participant.country) && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div className="text-muted text-small">Localização</div>
-            <div style={{ fontWeight: 500 }}>
-              {[participant.city, participant.state, participant.country].filter(Boolean).join(" · ")}
-            </div>
-          </div>
-        )}
-        {participant.notes && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div className="text-muted text-small">Observações</div>
-            <div style={{ fontSize: "0.9rem" }}>{participant.notes}</div>
-          </div>
-        )}
+    <>
+    <div className="card participant-form-card">
+      <div className="section-card-header section-card-header--compact">
+        <h2>Confirmar Participante</h2>
       </div>
-      <div className="flex gap-1">
-        <button className="btn btn--ghost" onClick={onBack}>← Voltar</button>
-        <button className="btn btn--primary" style={{ flex: 1 }}
+
+      <div className="participant-confirm-card">
+        <div className="participant-confirm-card__name">
+          <span>Nome e Sobrenome</span>
+          <strong>{participant.name}</strong>
+        </div>
+        <div className="participant-confirm-card__grid">
+          {patientDetails.map((item) => (
+            <div className="participant-confirm-card__item" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+      <div className="flow-action-row flow-action-row--split">
+        <button className="flow-secondary-button" onClick={onBack}>Voltar</button>
+        <button className="flow-next-button"
           onClick={() => onConfirm(participant.id)} disabled={loading}>
-          {loading ? "Abrindo sessão..." : "Iniciar avaliação →"}
+          {loading ? "Abrindo..." : "Iniciar"}
         </button>
       </div>
-    </div>
+    </>
   );
 }
 
-function NewParticipantForm({ onCreated, onBack, loading, error }) {
+function NewParticipantForm({ onCreated, onBack, loading, error, submitLabel }) {
   const [form, setForm] = useState({
-    name: "", birthdate: "", sex: "M",
-    diagnosis_cid: "",
-    city: "", state: "", country: "Brasil",
+    first_name: "", last_name: "", birthdate: "", sex: "M",
+    diagnosis_cid: "", additional_diagnoses: [],
+    city: "", state: "", country: "",
+    medication_use: "",
+    medication_notes: "",
     notes: "",
   });
-  const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handle = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "country") {
+        next.state = "";
+        next.city = "";
+      }
+      if (name === "state") {
+        next.city = "";
+      }
+      if (name === "medication_use" && value !== "Sim") {
+        next.medication_notes = "";
+      }
+      return next;
+    });
+  };
+  const addAdditionalDiagnosis = () => {
+    setForm((prev) => ({
+      ...prev,
+      additional_diagnoses: [...prev.additional_diagnoses, ""],
+    }));
+  };
+  const updateAdditionalDiagnosis = (index, value) => {
+    setForm((prev) => ({
+      ...prev,
+      additional_diagnoses: prev.additional_diagnoses.map((item, itemIndex) => (
+        itemIndex === index ? value : item
+      )),
+    }));
+  };
+  const removeAdditionalDiagnosis = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      additional_diagnoses: prev.additional_diagnoses.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+  const submit = (e) => {
+    e.preventDefault();
+    const diagnoses = [form.diagnosis_cid, ...form.additional_diagnoses]
+      .filter(Boolean)
+      .filter((item, index, arr) => arr.indexOf(item) === index);
+    const { additional_diagnoses, medication_use, first_name, last_name, ...payload } = form;
+    onCreated({ ...payload, name: joinName(first_name, last_name), diagnosis_cid: diagnoses.join("; ") });
+  };
   const age = calcAge(form.birthdate);
+  const stateOptions = getStateOptions(form.country);
+  const cityOptions = getCityOptions(form.country, form.state);
+  const hasDiagnosisOptions = DIAGNOSIS_OPTIONS.some((diagnosis) => (
+    diagnosis !== form.diagnosis_cid && !form.additional_diagnoses.includes(diagnosis)
+  ));
 
   return (
-    <div className="card">
-      <h2 className="mb-1">Novo participante</h2>
-      <form style={{ display: "flex", flexDirection: "column", gap: "1.125rem" }}
-        onSubmit={(e) => { e.preventDefault(); onCreated(form); }}>
+    <form className="participant-form-shell" onSubmit={submit}>
+    <div className="card participant-form-card">
+      <div className="participant-form-header">
+        <span aria-hidden="true" />
+        <h2 className="participant-form-title">Cadastro do Participante</h2>
+        <span aria-hidden="true" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.125rem" }}>
 
-        <div className="form-group">
-          <label className="form-label">Nome completo</label>
-          <input className="form-input" name="name" value={form.name}
-            onChange={handle} required autoFocus />
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Nome</label>
+            <input className="form-input" name="first_name" value={form.first_name}
+              onChange={handle} required autoFocus />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Sobrenome</label>
+            <input className="form-input" name="last_name" value={form.last_name}
+              onChange={handle} required />
+          </div>
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">Data de nascimento</label>
+            <label className="form-label form-label--inline">
+              <span>Data de Nascimento</span>
+              {age !== null && <span className="form-label__hint">{age} anos</span>}
+            </label>
             <input className="form-input" type="date" name="birthdate"
               value={form.birthdate} onChange={handle} required />
-            {age !== null && <span className="form-hint">{age} anos</span>}
           </div>
           <div className="form-group">
             <label className="form-label">Sexo</label>
@@ -200,30 +256,114 @@ function NewParticipantForm({ onCreated, onBack, loading, error }) {
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Diagnóstico (CID) <span className="text-muted text-small">— opcional</span></label>
-          <input className="form-input" name="diagnosis_cid" value={form.diagnosis_cid}
-            onChange={handle} />
-          <span className="form-hint">CID-10 ou CID-11</span>
-        </div>
-
-        <div className="form-row">
+        <div className="location-grid">
           <div className="form-group">
-            <label className="form-label">Cidade <span className="text-muted text-small">— opcional</span></label>
-            <input className="form-input" name="city" value={form.city}
-              onChange={handle} />
+            <label className="form-label">País</label>
+            <select className="form-select" name="country"
+              value={form.country} onChange={handle} required>
+              <option value="">Selecione...</option>
+              {COUNTRY_OPTIONS.map((country) => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Estado <span className="text-muted text-small">— opcional</span></label>
-            <input className="form-input" name="state" value={form.state}
-              onChange={handle} maxLength={50} />
+            <label className="form-label">Estado</label>
+            <select className="form-select" name="state"
+              value={form.state} onChange={handle} required disabled={!form.country}>
+              <option value="">Selecione...</option>
+              {stateOptions.map((state) => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Cidade</label>
+            <select className="form-select" name="city"
+              value={form.city} onChange={handle} required disabled={!form.state}>
+              <option value="">Selecione...</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">País</label>
-          <input className="form-input" name="country" value={form.country}
-            onChange={handle} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div className="form-group">
+            <label className="form-label">Diagnóstico</label>
+            <select className="form-select" name="diagnosis_cid"
+              value={form.diagnosis_cid} onChange={handle} required>
+              <option value="">Selecione...</option>
+              {DIAGNOSIS_OPTIONS.map((diagnosis) => (
+                <option key={diagnosis} value={diagnosis}>{diagnosis}</option>
+              ))}
+            </select>
+          </div>
+
+          {form.additional_diagnoses.map((selectedDiagnosis, index) => (
+            <div className="form-group" key={`additional-diagnosis-${index}`}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>
+                  {index === 0 ? "Diagnóstico Adicional" : `Diagnóstico Adicional ${index + 1}`}
+                </label>
+                <button
+                  type="button"
+                  className="panel-action-button"
+                  onClick={() => removeAdditionalDiagnosis(index)}
+                >
+                  Remover
+                </button>
+              </div>
+              <select className="form-select"
+                value={selectedDiagnosis}
+                onChange={(event) => updateAdditionalDiagnosis(index, event.target.value)}>
+                <option value="">Selecione...</option>
+                {DIAGNOSIS_OPTIONS.filter((diagnosis) => (
+                  diagnosis !== form.diagnosis_cid
+                  && (!form.additional_diagnoses.includes(diagnosis) || diagnosis === selectedDiagnosis)
+                )).map((diagnosis) => (
+                  <option key={diagnosis} value={diagnosis}>{diagnosis}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+
+          {hasDiagnosisOptions && (
+            <button
+              type="button"
+              className="panel-action-button"
+              onClick={addAdditionalDiagnosis}
+              style={{ alignSelf: "flex-start" }}
+            >
+              {form.additional_diagnoses.length > 0 ? "+ Adicionar mais um diagnóstico" : "+ Adicionar Diagnóstico"}
+            </button>
+          )}
+        </div>
+
+        <div className="medication-grid">
+          <div className="form-group">
+            <label className="form-label">Medicação</label>
+            <select className="form-select" name="medication_use"
+              value={form.medication_use} onChange={handle} required>
+              <option value="">Selecione...</option>
+              <option value="Não">Não</option>
+              <option value="Sim">Sim</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Nome da Medicação</label>
+            <input className="form-input" name="medication_notes" value={form.medication_notes}
+              onChange={handle} required={form.medication_use === "Sim"}
+              disabled={form.medication_use !== "Sim"}
+              style={form.medication_use === "Sim" ? {} : {
+                background: "#f3f4f6",
+                borderColor: "#d1d5db",
+                color: "#9ca3af",
+                cursor: "not-allowed",
+              }} />
+          </div>
         </div>
 
         <div className="form-group">
@@ -235,20 +375,25 @@ function NewParticipantForm({ onCreated, onBack, loading, error }) {
 
         {error && <p className="form-error">{error}</p>}
 
-        <div className="flex gap-1" style={{ marginTop: "0.5rem" }}>
-          <button type="button" className="btn btn--ghost" onClick={onBack}>← Voltar</button>
-          <button type="submit" className="btn btn--primary" disabled={loading} style={{ flex: 1 }}>
-            {loading ? "Criando sessão..." : "Cadastrar e iniciar →"}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
+      <div className="flow-action-row flow-action-row--split">
+        <button type="button" className="flow-secondary-button" onClick={onBack}>
+          Voltar
+        </button>
+        <button type="submit" className="flow-next-button" disabled={loading}>
+          {loading ? "Salvando..." : submitLabel}
+        </button>
+      </div>
+    </form>
   );
 }
 
 export default function NewSession() {
   const navigate = useNavigate();
-  const [step, setStep]               = useState("select");
+  const [searchParams] = useSearchParams();
+  const participantOnly = searchParams.get("modo") === "participante";
+  const [step, setStep]               = useState(participantOnly ? "new" : "select");
   const [participants, setParticipants] = useState([]);
   const [selected, setSelected]       = useState(null);
   const [loading, setLoading]         = useState(false);
@@ -275,6 +420,10 @@ export default function NewSession() {
     try {
       const participant = await participantsApi.create(formData);
       setParticipants((prev) => [participant, ...prev]);
+      if (participantOnly) {
+        navigate("/");
+        return;
+      }
       await openSession(participant.id);
     } catch (err) {
       setError(err.response?.data?.detail || "Erro ao criar participante");
@@ -285,14 +434,14 @@ export default function NewSession() {
   return (
     <div className="page">
       <Navbar />
-      <main className="container mt-4" style={{ maxWidth: 580 }}>
-        <Stepper />
+      <main className="container mt-4" style={{ maxWidth: step === "new" ? 680 : 580 }}>
         {loadingList ? (
           <div className="card"><p className="text-muted text-small text-center">Carregando...</p></div>
         ) : step === "select" ? (
           <SelectParticipant participants={participants}
             onSelect={(p) => { setSelected(p); setStep("confirm"); }}
-            onNew={() => setStep("new")} />
+            onNew={() => setStep("new")}
+            onBack={() => navigate("/")} />
         ) : step === "confirm" ? (
           <ConfirmParticipant participant={selected}
             onConfirm={openSession}
@@ -300,10 +449,12 @@ export default function NewSession() {
             loading={loading} />
         ) : (
           <NewParticipantForm onCreated={createAndOpen}
-            onBack={() => setStep("select")}
-            loading={loading} error={error} />
+            onBack={() => participantOnly ? navigate("/") : setStep("select")}
+            loading={loading} error={error}
+            submitLabel={participantOnly ? "Cadastrar" : "Cadastrar e iniciar"} />
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

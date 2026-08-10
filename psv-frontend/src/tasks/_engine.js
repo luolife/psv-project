@@ -283,6 +283,7 @@ export async function showPause(container) {
 // ---------------------------------------------------------------------------
 
 export function showProgressBar(container, current, total, label = "") {
+  return;
   let bar = container.querySelector("#psv-progress");
   if (!bar) {
     bar = document.createElement("div");
@@ -361,6 +362,7 @@ export function calcMetrics(trials) {
       trial:    i,
       stimulus: t.stimulus ?? t.condicao ?? t.direcao_estimulo ?? "",
       response: t.resposta === "sem_resposta" ? null : t.resposta,
+      expected_response: t.resposta_correta ?? "",
       correct:  t.acerto_erro === "acerto",
       rt_ms:    t.tempo_resposta,
       fase:     t.fase,

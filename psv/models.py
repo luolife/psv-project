@@ -49,6 +49,7 @@ class Professional(Base):
     name             = Column(String(200), nullable=False)
     cpf              = Column(String(14),  nullable=True)
     email            = Column(String(200), nullable=False, unique=True, index=True)
+    secondary_email  = Column(String(200), nullable=True)
     hashed_password  = Column(String(200), nullable=False)
     profession       = Column(String(100), nullable=True)
     council          = Column(String(100), nullable=True)
@@ -56,6 +57,7 @@ class Professional(Base):
     area             = Column(String(200), nullable=True)   # área de atuação
     titulation       = Column(String(100), nullable=True)   # titulação
     institution      = Column(String(200), nullable=True)   # instituição
+    country          = Column(String(100), nullable=True, default="Brasil")
     city             = Column(String(100), nullable=True)
     state            = Column(String(50),  nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -80,10 +82,11 @@ class Participant(Base):
     name            = Column(String(200), nullable=False)   # nome completo
     birthdate       = Column(String(10),  nullable=True)    # YYYY-MM-DD
     sex             = Column(String(1),   nullable=False)   # "M" | "F" | "O"
-    diagnosis_cid   = Column(String(20),  nullable=True)    # CID-10/11
+    diagnosis_cid   = Column(String(500), nullable=True)    # Diagnosticos selecionados
     city            = Column(String(100), nullable=True)
     state           = Column(String(50),  nullable=True)
     country         = Column(String(100), nullable=True, default="Brasil")
+    medication_notes = Column(Text,       nullable=True)
     notes           = Column(Text,        nullable=True)
     # Campos legados — mantidos para compatibilidade
     initials        = Column(String(10),  nullable=True)
@@ -110,6 +113,10 @@ class PSVSession(Base):
     status          = Column(Enum(SessionStatus), default=SessionStatus.IN_PROGRESS, nullable=False)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at    = Column(DateTime, nullable=True)
+    report_generated_at = Column(DateTime, nullable=True)
+    report_expires_at   = Column(DateTime, nullable=True)
+    report_data_removed_at = Column(DateTime, nullable=True)
+    report_data_status  = Column(String(40), nullable=False, default="not_generated")
 
     participant  = relationship("Participant",      back_populates="sessions")
     professional = relationship("Professional",     back_populates="sessions")

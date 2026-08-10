@@ -24,6 +24,41 @@ MIGRATIONS = [
         "column": "state",
         "ddl": "ALTER TABLE professionals ADD COLUMN state VARCHAR(50)",
     },
+    {
+        "table": "professionals",
+        "column": "country",
+        "ddl": "ALTER TABLE professionals ADD COLUMN country VARCHAR(100) DEFAULT 'Brasil'",
+    },
+    {
+        "table": "professionals",
+        "column": "secondary_email",
+        "ddl": "ALTER TABLE professionals ADD COLUMN secondary_email VARCHAR(200)",
+    },
+    {
+        "table": "participants",
+        "column": "medication_notes",
+        "ddl": "ALTER TABLE participants ADD COLUMN medication_notes TEXT",
+    },
+    {
+        "table": "sessions",
+        "column": "report_generated_at",
+        "ddl": "ALTER TABLE sessions ADD COLUMN report_generated_at DATETIME",
+    },
+    {
+        "table": "sessions",
+        "column": "report_expires_at",
+        "ddl": "ALTER TABLE sessions ADD COLUMN report_expires_at DATETIME",
+    },
+    {
+        "table": "sessions",
+        "column": "report_data_removed_at",
+        "ddl": "ALTER TABLE sessions ADD COLUMN report_data_removed_at DATETIME",
+    },
+    {
+        "table": "sessions",
+        "column": "report_data_status",
+        "ddl": "ALTER TABLE sessions ADD COLUMN report_data_status VARCHAR(40) DEFAULT 'not_generated' NOT NULL",
+    },
     # checklist_results: aceitar "N/A" no level (já era VARCHAR, sem mudança de schema)
 ]
 
@@ -43,7 +78,7 @@ def run():
                     conn.execute(text(m["ddl"]))
                     print(f"    OK")
                 else:
-                    print(f"  ✓ {m['table']}.{m['column']} — já existe, pulando")
+                    print(f"  OK {m['table']}.{m['column']} — já existe, pulando")
 
     print("\nMigração concluída.")
 

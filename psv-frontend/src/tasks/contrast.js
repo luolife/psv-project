@@ -193,9 +193,9 @@ export async function runContrastTask(container) {
      <br>
      <p style="color:#ccc;font-size:1rem;line-height:2.2">
        <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">←</kbd>
-       → se <strong>enxergar</strong> o estímulo<br>
+       se <strong>enxergar</strong> o estímulo<br>
        <kbd style="background:#222;padding:6px 14px;border-radius:4px;font-size:1.3rem">→</kbd>
-       → se <strong>não enxergar nada</strong>
+       se <strong>não enxergar nada</strong>
      </p>
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);
