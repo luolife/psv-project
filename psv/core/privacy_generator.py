@@ -15,29 +15,18 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from core.pdf_fonts import register_arial_compatible_fonts
 
-ROOT = Path(__file__).resolve().parents[2]
-SOURCE_PATH = ROOT / "psv" / "legal" / "privacy_policy.md"
-LOGO_PATH = ROOT / "psv-frontend" / "src" / "assets" / "logo.png.png"
-FONT_DIR = Path("C:/Windows/Fonts")
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+SOURCE_PATH = BACKEND_DIR / "legal" / "privacy_policy.md"
+LOGO_PATH = BACKEND_DIR / "psv logo.jpeg"
 
 TEXT_DARK = colors.HexColor("#111827")
 TEXT_MUTED = colors.HexColor("#64748B")
 
 
-def _register_fonts():
-    try:
-        pdfmetrics.registerFont(TTFont("Arial", str(FONT_DIR / "arial.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Bold", str(FONT_DIR / "arialbd.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Italic", str(FONT_DIR / "ariali.ttf")))
-        pdfmetrics.registerFontFamily("Arial", normal="Arial", bold="Arial-Bold", italic="Arial-Italic")
-    except Exception:
-        pdfmetrics.registerFontFamily(
-            "Arial", normal="Helvetica", bold="Helvetica-Bold", italic="Helvetica-Oblique"
-        )
-
-
-_register_fonts()
+register_arial_compatible_fonts()
 
 
 def _styles():

@@ -27,6 +27,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from core.pdf_fonts import register_arial_compatible_fonts
+
 
 PSV_BLUE = colors.HexColor("#1A3A6B")
 PSV_HEADER = colors.HexColor("#111C2E")
@@ -34,23 +36,11 @@ PSV_ROW = colors.HexColor("#F8FAFC")
 TEXT_DARK = colors.HexColor("#111827")
 TEXT_MUTED = colors.HexColor("#64748B")
 
-ROOT = Path(__file__).resolve().parents[2]
-LOGO_PATH = ROOT / "psv-frontend" / "src" / "assets" / "logo.png.png"
-FONT_DIR = Path("C:/Windows/Fonts")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+LOGO_PATH = BACKEND_DIR / "psv logo.jpeg"
 
 
-def _register_fonts():
-    try:
-        pdfmetrics.registerFont(TTFont("Arial", str(FONT_DIR / "arial.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Bold", str(FONT_DIR / "arialbd.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Italic", str(FONT_DIR / "ariali.ttf")))
-        pdfmetrics.registerFontFamily("Arial", normal="Arial", bold="Arial-Bold", italic="Arial-Italic")
-    except Exception:
-        # Helvetica keeps the PDF generation available if Arial is missing.
-        pdfmetrics.registerFontFamily("Arial", normal="Helvetica", bold="Helvetica-Bold", italic="Helvetica-Oblique")
-
-
-_register_fonts()
+register_arial_compatible_fonts()
 
 
 IDENTIFICATION_FIELDS = [

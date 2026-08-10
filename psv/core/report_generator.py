@@ -22,6 +22,8 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
+from core.pdf_fonts import register_arial_compatible_fonts
+
 
 # ---------------------------------------------------------------------------
 # Paleta de cores — alinhada ao protótipo
@@ -35,21 +37,11 @@ PSV_LINE   = colors.HexColor("#D8E0EA")
 PSV_ROW    = colors.HexColor("#F8FAFC")
 TEXT_DARK  = colors.HexColor("#111827")
 TEXT_MUTED = colors.HexColor("#64748B")
-LOGO_PATH = Path(__file__).resolve().parents[2] / "psv-frontend" / "src" / "assets" / "logo.png.png"
-FONT_DIR = Path("C:/Windows/Fonts")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+LOGO_PATH = BACKEND_DIR / "psv logo.jpeg"
 
 
-def _register_fonts():
-    try:
-        pdfmetrics.registerFont(TTFont("Arial", str(FONT_DIR / "arial.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Bold", str(FONT_DIR / "arialbd.ttf")))
-        pdfmetrics.registerFont(TTFont("Arial-Italic", str(FONT_DIR / "ariali.ttf")))
-        pdfmetrics.registerFontFamily("Arial", normal="Arial", bold="Arial-Bold", italic="Arial-Italic")
-    except Exception:
-        pdfmetrics.registerFontFamily("Arial", normal="Helvetica", bold="Helvetica-Bold", italic="Helvetica-Oblique")
-
-
-_register_fonts()
+register_arial_compatible_fonts()
 
 TASK_LABELS = {
     "contrast": "Sensibilidade de Contraste",
