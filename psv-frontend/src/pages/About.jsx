@@ -6,19 +6,19 @@ import unisantosLogo from "../assets/unisantos-symbol-white.png";
 
 const ABOUT_LINKS = [
   {
-    icon: "instagram",
+    icon: "site",
+    label: "UNISANTOS",
+    href: "https://www.unisantos.br",
+  },
+  {
+    icon: "site",
     label: "PIP-TEA",
-    href: "https://www.instagram.com/piptea.unisantos/",
+    href: "https://www.unisantos.br/clinicapsicologia/tea-inclusao-profissional/",
   },
   {
     icon: "instagram",
     label: "Luiz Henrique Ferreira",
     href: "https://www.instagram.com/psi.luizhferreira/?utm_source=ig_web_button_share_sheet",
-  },
-  {
-    icon: "site",
-    label: "UNISANTOS",
-    href: "https://www.unisantos.br",
   },
 ];
 

@@ -1437,7 +1437,7 @@ h3 { font-size: 1rem;    font-weight: 500; }
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--c-text-3);
-  cursor: default;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1447,7 +1447,7 @@ h3 { font-size: 1rem;    font-weight: 500; }
   font-family: var(--font-body);
   font-size: 0.78rem;
   font-weight: 600;
-  user-select: none;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .flow-steps__item.is-done {
