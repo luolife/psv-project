@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from models import Base, Participant, Professional
 from core.report_generator import generate_detailed_pdf, generate_pdf
-from routers.sessions import create_session, submit_task
+from routers.sessions import create_session, enable_presentation_mode, submit_task
 from schemas import HardwareMetadata, SessionCreate, TaskResultSubmit
 
 
@@ -104,3 +104,25 @@ def test_normal_session_rejects_reduced_trial_count():
         submit_task(session.id, task_payload(5), db, admin)
 
     assert error.value.status_code == 422
+
+
+def test_admin_can_enable_presentation_before_tasks_start():
+    db = make_database()
+    admin, participant = add_account(db, "admin@psv.test", 1)
+    session = create_session(SessionCreate(participant_id=participant.id), db, admin)
+
+    updated = enable_presentation_mode(session.id, db, admin)
+
+    assert updated.presentation_mode == 1
+    assert submit_task(session.id, task_payload(5), db, admin).total_trials == 5
+
+
+def test_regular_user_cannot_enable_presentation_mode():
+    db = make_database()
+    regular, participant = add_account(db, "regular@psv.test", 0)
+    session = create_session(SessionCreate(participant_id=participant.id), db, regular)
+
+    with pytest.raises(HTTPException) as error:
+        enable_presentation_mode(session.id, db, regular)
+
+    assert error.value.status_code == 403

@@ -5,6 +5,7 @@ GET    /sessions                        → lista do profissional
 GET    /sessions/{id}                   → detalhe da sessão
 DELETE /sessions/{id}                   → exclui sessão do profissional
 PATCH  /sessions/{id}/status            → marca completed / abandoned
+PATCH  /sessions/{id}/presentation-mode → ativa modo reduzido para administrador
 POST   /sessions/{id}/checklist         → salva checklist + calcula scores
 POST   /sessions/{id}/tasks             → salva resultado de uma task
 GET    /sessions/{id}/summary           → resumo completo para relatório
@@ -112,6 +113,33 @@ def create_session(
         presentation_mode=1 if payload.presentation_mode else 0,
     )
     db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+@router.patch("/{session_id}/presentation-mode", response_model=SessionRead)
+def enable_presentation_mode(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current: Professional = Depends(get_current_professional),
+):
+    if not current.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modo de apresentação disponível apenas para administradores",
+        )
+
+    session = _get_own_session(session_id, db, current)
+    _require_in_progress(session)
+
+    if session.task_results:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="O modo de apresentação não pode ser alterado após o início das tarefas",
+        )
+
+    session.presentation_mode = 1
     db.commit()
     db.refresh(session)
     return session

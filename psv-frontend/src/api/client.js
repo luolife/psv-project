@@ -70,6 +70,8 @@ export const sessionsApi = {
     api.get(`/sessions/${id}`).then((r) => r.data),
   delete: (id) =>
     api.delete(`/sessions/${id}`),
+  enablePresentation: (id) =>
+    api.patch(`/sessions/${id}/presentation-mode`).then((r) => r.data),
   complete: (id) =>
     api.patch(`/sessions/${id}/status`, { status: "completed" }).then((r) => r.data),
   abandon: (id) =>

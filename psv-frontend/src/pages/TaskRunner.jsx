@@ -4,6 +4,8 @@ import Navbar from "../components/Navbar";
 import FlowSteps from "../components/FlowSteps";
 import SiteFooter from "../components/SiteFooter";
 import { tasksApi, sessionsApi } from "../api/client";
+import { useAuth } from "../context/AuthContext";
+import { isPresentationModeEnabled } from "../utils/presentationMode";
 import { runContrastTask } from "../tasks/contrast";
 import { runMotionTask }   from "../tasks/motion";
 import { runGaborTask }    from "../tasks/gabor";
@@ -54,6 +56,7 @@ async function captureHardwareMeta() {
 export default function TaskRunner() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { professional } = useAuth();
 
   const [phase, setPhase]             = useState("select");
   const [selected, setSelected]       = useState([]);  // preenchido pelo useEffect
@@ -73,8 +76,20 @@ export default function TaskRunner() {
   // Carrega quais tasks já foram feitas nesta sessão
   useEffect(() => {
     sessionsApi.summary(sessionId)
-      .then((s) => {
-        setPresentationMode(Boolean(s.session?.presentation_mode));
+      .then(async (s) => {
+        let session = s.session;
+        const shouldEnablePresentation = Boolean(
+          professional?.is_admin
+          && isPresentationModeEnabled()
+          && !session?.presentation_mode
+          && s.tasks.length === 0
+        );
+
+        if (shouldEnablePresentation) {
+          session = await sessionsApi.enablePresentation(sessionId);
+        }
+
+        setPresentationMode(Boolean(session?.presentation_mode));
         const done = s.tasks.map((t) => t.task_name);
         setAlreadyDone(done);
         // Pré-seleciona apenas as que faltam
@@ -83,7 +98,7 @@ export default function TaskRunner() {
       })
       .catch(() => {})
       .finally(() => setLoadingDone(false));
-  }, [sessionId]);
+  }, [sessionId, professional?.is_admin]);
 
   const toggleTask = (key) => {
     // Não permite desmarcar tasks já feitas
