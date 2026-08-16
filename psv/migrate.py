@@ -3,6 +3,7 @@
 from sqlalchemy import inspect, text
 
 from database import engine
+from config import settings
 
 
 MIGRATIONS = [
@@ -13,6 +14,7 @@ MIGRATIONS = [
     ("professionals", "country", "VARCHAR(100) DEFAULT 'Brasil'"),
     ("professionals", "city", "VARCHAR(100)"),
     ("professionals", "state", "VARCHAR(50)"),
+    ("professionals", "is_admin", "INTEGER DEFAULT 0 NOT NULL"),
     # participants
     ("participants", "country", "VARCHAR(100) DEFAULT 'Brasil'"),
     ("participants", "medication_notes", "TEXT"),
@@ -25,6 +27,7 @@ MIGRATIONS = [
         "report_data_status",
         "VARCHAR(40) DEFAULT 'not_generated' NOT NULL",
     ),
+    ("sessions", "presentation_mode", "INTEGER DEFAULT 0 NOT NULL"),
 ]
 
 # Colunas presentes em bancos antigos que precisam ter seu tamanho ampliado.
@@ -97,6 +100,16 @@ def run(target_engine=engine, verbose: bool = True) -> None:
                 )
                 if verbose:
                     print("    OK")
+
+        if "professionals" in tables and "is_admin" in columns_by_table["professionals"]:
+            for admin_email in settings.admin_email_set:
+                conn.execute(
+                    text(
+                        "UPDATE professionals SET is_admin = 1 "
+                        "WHERE LOWER(email) = :admin_email"
+                    ),
+                    {"admin_email": admin_email},
+                )
 
     if verbose:
         print("\nMigracao concluida.")

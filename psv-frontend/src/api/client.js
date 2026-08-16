@@ -62,8 +62,8 @@ export const participantsApi = {
 // Sessões
 // ---------------------------------------------------------------------------
 export const sessionsApi = {
-  create: (participant_id) =>
-    api.post("/sessions", { participant_id }).then((r) => r.data),
+  create: (participant_id, presentation_mode = false) =>
+    api.post("/sessions", { participant_id, presentation_mode }).then((r) => r.data),
   list: () =>
     api.get("/sessions").then((r) => r.data),
   get: (id) =>

@@ -273,7 +273,7 @@ async function runSequence(container, seq, fase, feedback) {
 // ---------------------------------------------------------------------------
 // Entrada pública
 // ---------------------------------------------------------------------------
-export async function runMotionTask(container) {
+export async function runMotionTask(container, { presentationMode = false } = {}) {
   await showInstructions(container, [
     `<p style="font-size:1.1rem">Esta é uma atividade sobre <strong>percepção visual de movimento</strong>.</p>
      <p style="color:#aaa;margin-top:1rem;font-size:0.95rem">
@@ -301,8 +301,10 @@ export async function runMotionTask(container) {
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);
 
-  const seqPractice = pseudorandomizeMaxRun(balancedSequence(PRACTICE_TRIALS, LABELS), 3);
-  const seqMain     = pseudorandomizeMaxRun(balancedSequence(MAIN_TRIALS, LABELS), 3);
+  const practiceTrials = presentationMode ? 5 : PRACTICE_TRIALS;
+  const mainTrials = presentationMode ? 5 : MAIN_TRIALS;
+  const seqPractice = pseudorandomizeMaxRun(balancedSequence(practiceTrials, LABELS), 3);
+  const seqMain     = pseudorandomizeMaxRun(balancedSequence(mainTrials, LABELS), 3);
 
   const practiceResults = await runSequence(container, seqPractice, "treino", true);
 

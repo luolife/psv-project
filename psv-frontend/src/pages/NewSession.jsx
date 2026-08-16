@@ -4,6 +4,8 @@ import Navbar from "../components/Navbar";
 import SiteFooter from "../components/SiteFooter";
 import { participantsApi, sessionsApi } from "../api/client";
 import { COUNTRY_OPTIONS, getCityOptions, getStateOptions } from "../data/locations";
+import { isPresentationModeEnabled } from "../utils/presentationMode";
+import { useAuth } from "../context/AuthContext";
 
 const SEX_LABELS = { M: "Masculino", F: "Feminino", O: "Outro" };
 const DIAGNOSIS_OPTIONS = [
@@ -390,6 +392,7 @@ function NewParticipantForm({ onCreated, onBack, loading, error, submitLabel }) 
 }
 
 export default function NewSession() {
+  const { professional } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const participantOnly = searchParams.get("modo") === "participante";
@@ -407,7 +410,10 @@ export default function NewSession() {
   const openSession = async (participantId) => {
     setLoading(true); setError("");
     try {
-      const session = await sessionsApi.create(participantId);
+      const session = await sessionsApi.create(
+        participantId,
+        Boolean(professional?.is_admin && isPresentationModeEnabled()),
+      );
       navigate(`/sessions/${session.id}/checklist`);
     } catch (err) {
       setError(err.response?.data?.detail || "Erro ao iniciar sessão");

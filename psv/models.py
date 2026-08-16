@@ -62,6 +62,7 @@ class Professional(Base):
     state            = Column(String(50),  nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active        = Column(Integer, default=1, nullable=False)
+    is_admin         = Column(Integer, default=0, nullable=False)
 
     participants = relationship("Participant", back_populates="professional")
     sessions     = relationship("PSVSession",  back_populates="professional")
@@ -117,6 +118,7 @@ class PSVSession(Base):
     report_expires_at   = Column(DateTime, nullable=True)
     report_data_removed_at = Column(DateTime, nullable=True)
     report_data_status  = Column(String(40), nullable=False, default="not_generated")
+    presentation_mode   = Column(Integer, nullable=False, default=0)
 
     participant  = relationship("Participant",      back_populates="sessions")
     professional = relationship("Professional",     back_populates="sessions")

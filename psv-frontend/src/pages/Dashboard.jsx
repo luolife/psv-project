@@ -7,6 +7,10 @@ import SiteFooter from "../components/SiteFooter";
 import { participantsApi, sessionsApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import pipTeaLogo from "../assets/pip-tea.png";
+import {
+  isPresentationModeEnabled,
+  setPresentationModeEnabled,
+} from "../utils/presentationMode";
 
 const DIAGNOSIS_OPTIONS = [
   "Transtorno do Espectro Autista",
@@ -48,6 +52,9 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
   const [sessionSummaries, setSessionSummaries] = useState({});
   const [loading, setLoading] = useState(true);
+  const [presentationMode, setPresentationMode] = useState(
+    isPresentationModeEnabled,
+  );
   const [startingParticipantId, setStartingParticipantId] = useState(null);
   const [deletingSessionId, setDeletingSessionId] = useState(null);
   const [deletingParticipantId, setDeletingParticipantId] = useState(null);
@@ -75,6 +82,19 @@ export default function Dashboard() {
       .then(([p, s]) => { setParticipants(p); setSessions(s); })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (professional && !professional.is_admin) {
+      setPresentationMode(false);
+      setPresentationModeEnabled(false);
+    }
+  }, [professional]);
+
+  const togglePresentationMode = () => {
+    const enabled = !presentationMode;
+    setPresentationMode(enabled);
+    setPresentationModeEnabled(enabled);
+  };
 
   useEffect(() => {
     if (sessions.length === 0) return;
@@ -261,7 +281,10 @@ export default function Dashboard() {
   const startAssessment = async (participantId) => {
     setStartingParticipantId(participantId);
     try {
-      const session = await sessionsApi.create(participantId);
+      const session = await sessionsApi.create(
+        participantId,
+        Boolean(professional?.is_admin && presentationMode),
+      );
       navigate(`/sessions/${session.id}/checklist`);
     } finally {
       setStartingParticipantId(null);
@@ -447,6 +470,19 @@ export default function Dashboard() {
             <h1>Olá, {professional?.name?.split(" ")[0]}</h1>
           </div>
           <div className="dashboard-actions">
+            {professional?.is_admin && (
+              <label className={`presentation-switch ${presentationMode ? "is-active" : ""}`}>
+                <span className="presentation-switch__label">Modo de Apresentação</span>
+                <input
+                  type="checkbox"
+                  checked={presentationMode}
+                  onChange={togglePresentationMode}
+                />
+                <span className="presentation-switch__track" aria-hidden="true">
+                  <span className="presentation-switch__thumb" />
+                </span>
+              </label>
+            )}
             <button
               className="flow-secondary-button flow-next-button--compact"
               onClick={() => navigate("/sessions/new?modo=participante")}

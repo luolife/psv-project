@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 480   # 8 horas — sessão de trabalho
 
+    # --- Administração ---
+    # Lista separada por virgulas. A permissao efetiva tambem fica registrada
+    # no banco, sem depender da senha ou de informacoes enviadas pelo frontend.
+    admin_emails: str = "luizhenrique.asf@gmail.com"
+
     # --- App ---
     app_name: str = "PSV — Protocolo Sensorial Visual"
     app_version: str = "0.1.0"
@@ -42,6 +47,17 @@ class Settings(BaseSettings):
         if raw.startswith("["):
             return json.loads(raw)
         return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+    @property
+    def admin_email_set(self) -> set[str]:
+        return {
+            email.strip().lower()
+            for email in self.admin_emails.split(",")
+            if email.strip()
+        }
+
+    def is_admin_email(self, email: str) -> bool:
+        return email.strip().lower() in self.admin_email_set
 
 
 settings = Settings()

@@ -528,12 +528,23 @@ def _participant_info(session, styles) -> list:
         ]),
     )
 
-    return [
+    content = [
         Paragraph("RESULTADOS DA AVALIAÇÃO DO PROTOCOLO SENSORIAL VISUAL — PSV", s["title"]),
+    ]
+    if getattr(session, "presentation_mode", False):
+        content.extend([
+            Paragraph(
+                "Modo de Apresentação • 5 treinos e 5 tentativas principais por tarefa",
+                s["issued"],
+            ),
+            Spacer(1, 0.05 * cm),
+        ])
+    content.extend([
         Spacer(1, 0.08 * cm),
         Paragraph("Dados do Participante", s["section"]),
         info_table,
-    ]
+    ])
+    return content
 
 
 def _tasks_table(session, styles) -> list:

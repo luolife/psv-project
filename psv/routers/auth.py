@@ -14,6 +14,7 @@ from auth import (
     create_access_token, get_current_professional,
 )
 from database import get_db
+from config import settings
 from models import Professional
 from schemas import (
     ProfessionalCreate, ProfessionalRead, ProfessionalUpdate,
@@ -49,6 +50,7 @@ def register(payload: ProfessionalCreate, db: Session = Depends(get_db)):
         country=payload.country,
         city=payload.city,
         state=payload.state,
+        is_admin=1 if settings.is_admin_email(str(payload.email)) else 0,
     )
     db.add(professional)
     db.commit()

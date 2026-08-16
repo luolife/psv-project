@@ -37,6 +37,13 @@ function buildBalancedLabels() {
   return labels;
 }
 const LABELS = buildBalancedLabels();
+const PRESENTATION_LABELS = [
+  "nenhum_estimulo",
+  "contraste_0.09",
+  "contraste_0.28",
+  "contraste_0.51",
+  "contraste_0.9",
+];
 
 // ---------------------------------------------------------------------------
 // Pré-computa a máscara gaussiana UMA VEZ — é fixa para todos os trials
@@ -172,7 +179,7 @@ async function runSequence(container, seq, fase, feedback) {
 // ---------------------------------------------------------------------------
 // Entrada pública
 // ---------------------------------------------------------------------------
-export async function runContrastTask(container) {
+export async function runContrastTask(container, { presentationMode = false } = {}) {
   await showInstructions(container, [
     `<p style="font-size:1.1rem">Esta é uma atividade sobre <strong>percepção visual de contraste</strong>.</p>
      <p style="color:#aaa;margin-top:1rem;font-size:0.95rem">
@@ -200,13 +207,26 @@ export async function runContrastTask(container) {
      <p style="color:#555;margin-top:2rem;font-size:0.8rem">Pressione qualquer tecla para iniciar</p>`,
   ]);
 
-  const seqPractice = pseudorandomizeMaxRun(balancedSequence(PRACTICE_TRIALS, [
-    ...CONTRAST_LEVELS.map(c => `contraste_${c}`), "nenhum_estimulo"
-  ]), 3);
+  const practiceTrials = presentationMode ? 5 : PRACTICE_TRIALS;
+  const mainTrials = presentationMode ? 5 : MAIN_TRIALS;
+  const practiceLabels = presentationMode
+    ? PRESENTATION_LABELS
+    : [...CONTRAST_LEVELS.map(c => `contraste_${c}`), "nenhum_estimulo"];
 
-  const seqMain = pseudorandomizeMaxRun(
-    [...LABELS].sort(() => Math.random() - 0.5), 3
+  const seqPractice = pseudorandomizeMaxRun(
+    balancedSequence(practiceTrials, practiceLabels),
+    3,
   );
+
+  const seqMain = presentationMode
+    ? pseudorandomizeMaxRun(
+        balancedSequence(mainTrials, PRESENTATION_LABELS),
+        3,
+      )
+    : pseudorandomizeMaxRun(
+        [...LABELS].sort(() => Math.random() - 0.5),
+        3,
+      );
 
   const practiceResults = await runSequence(container, seqPractice, "treino", true);
 

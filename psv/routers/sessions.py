@@ -100,9 +100,16 @@ def create_session(
     if not participant:
         raise HTTPException(status_code=404, detail="Participante não encontrado")
 
+    if payload.presentation_mode and not current.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modo de apresentação disponível apenas para administradores",
+        )
+
     session = PSVSession(
         participant_id=payload.participant_id,
         professional_id=current.id,
+        presentation_mode=1 if payload.presentation_mode else 0,
     )
     db.add(session)
     db.commit()
@@ -247,6 +254,16 @@ def submit_task(
 ):
     session = _get_own_session(session_id, db, current)
     _require_in_progress(session)
+
+    expected_trials = 5 if session.presentation_mode else 80
+    if payload.total_trials != expected_trials:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Quantidade inválida de tentativas principais: "
+                f"esperado {expected_trials}"
+            ),
+        )
 
     # Impede submissão duplicada da mesma task
     existing = db.query(TaskResult).filter(

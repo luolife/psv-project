@@ -251,9 +251,14 @@ export default function Results() {
                 </div>
               </div>
             </div>
-            <span className={`badge ${session.status === "completed" ? "badge--teal" : "badge--medio"}`}>
-              {session.status === "completed" ? "Concluída" : "Incompleto"}
-            </span>
+            <div className="results-patient__badges">
+              {session.presentation_mode && (
+                <span className="badge badge--blue">Modo de Apresentação</span>
+              )}
+              <span className={`badge ${session.status === "completed" ? "badge--teal" : "badge--medio"}`}>
+                {session.status === "completed" ? "Concluída" : "Incompleto"}
+              </span>
+            </div>
           </div>
 
           {screeningSummary && (

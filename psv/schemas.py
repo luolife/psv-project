@@ -70,6 +70,7 @@ class ProfessionalRead(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     created_at: datetime
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -185,6 +186,7 @@ class ParticipantRead(BaseModel):
 
 class SessionCreate(BaseModel):
     participant_id: str
+    presentation_mode: bool = False
 
 
 class SessionRead(BaseModel):
@@ -198,6 +200,7 @@ class SessionRead(BaseModel):
     report_expires_at: Optional[datetime] = None
     report_data_removed_at: Optional[datetime] = None
     report_data_status: str = "not_generated"
+    presentation_mode: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -259,6 +262,7 @@ class TrialData(BaseModel):
     expected_response: Optional[str] = None
     correct: bool
     rt_ms: Optional[float] = None
+    fase: Optional[str] = "principal"
 
 
 class HardwareMetadata(BaseModel):

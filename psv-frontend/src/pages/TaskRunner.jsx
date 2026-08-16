@@ -65,6 +65,7 @@ export default function TaskRunner() {
   // Tasks já feitas em rodadas anteriores (carregadas do banco)
   const [alreadyDone, setAlreadyDone] = useState([]);
   const [loadingDone, setLoadingDone] = useState(true);
+  const [presentationMode, setPresentationMode] = useState(false);
   const [expandedTaskKey, setExpandedTaskKey] = useState(null);
   const taskContainerRef = useRef(null);
   const hardwareMetaRef  = useRef(null);
@@ -73,6 +74,7 @@ export default function TaskRunner() {
   useEffect(() => {
     sessionsApi.summary(sessionId)
       .then((s) => {
+        setPresentationMode(Boolean(s.session?.presentation_mode));
         const done = s.tasks.map((t) => t.task_name);
         setAlreadyDone(done);
         // Pré-seleciona apenas as que faltam
@@ -129,7 +131,9 @@ export default function TaskRunner() {
           continue;
         }
 
-        const result = await task.fn(taskContainerRef.current);
+        const result = await task.fn(taskContainerRef.current, {
+          presentationMode,
+        });
         setSubmitting(true);
         try {
           await tasksApi.submit(sessionId, {

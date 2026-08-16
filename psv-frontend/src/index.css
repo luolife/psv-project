@@ -285,6 +285,77 @@ h3 { font-size: 1rem;    font-weight: 500; }
   justify-content: flex-end;
 }
 
+.presentation-switch {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.34rem 0.55rem 0.34rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--c-text-3);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.presentation-switch.is-active {
+  border-color: rgba(37, 104, 179, 0.28);
+  background: var(--c-blue-50);
+  color: var(--c-blue-700);
+}
+
+.presentation-switch__label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.presentation-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.presentation-switch__track {
+  width: 2.25rem;
+  height: 1.24rem;
+  flex: 0 0 2.25rem;
+  padding: 0.13rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  display: flex;
+  align-items: center;
+  transition: background 0.18s ease;
+}
+
+.presentation-switch__thumb {
+  width: 0.98rem;
+  height: 0.98rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 28, 46, 0.24);
+  transform: translateX(0);
+  transition: transform 0.18s ease;
+}
+
+.presentation-switch.is-active .presentation-switch__track {
+  background: var(--c-blue-500);
+}
+
+.presentation-switch.is-active .presentation-switch__thumb {
+  transform: translateX(1.01rem);
+}
+
+.presentation-switch:focus-within {
+  box-shadow: 0 0 0 3px var(--c-blue-100);
+}
+
 .dashboard-main {
   flex: 1;
   padding-bottom: 2rem;
@@ -1437,7 +1508,7 @@ h3 { font-size: 1rem;    font-weight: 500; }
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--c-text-3);
-  cursor: pointer;
+  cursor: default;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1448,6 +1519,11 @@ h3 { font-size: 1rem;    font-weight: 500; }
   font-size: 0.78rem;
   font-weight: 600;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.flow-steps__item.is-clickable {
+  cursor: pointer;
 }
 
 .flow-steps__item.is-done {
@@ -1586,6 +1662,14 @@ h3 { font-size: 1rem;    font-weight: 500; }
   height: 0.72rem;
   background: rgba(107, 114, 128, 0.28);
   flex-shrink: 0;
+}
+
+.results-patient__badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.42rem;
+  flex-wrap: wrap;
 }
 
 .results-section-group {
@@ -3898,6 +3982,10 @@ h3 { font-size: 1rem;    font-weight: 500; }
     justify-content: stretch;
     flex-direction: column;
   }
+  .presentation-switch {
+    width: 100%;
+    justify-content: space-between;
+  }
   .dashboard-actions .btn {
     width: 100%;
   }
@@ -4255,6 +4343,9 @@ h3 { font-size: 1rem;    font-weight: 500; }
   }
   .results-patient__meta {
     gap: 0.32rem;
+  }
+  .results-patient__badges {
+    justify-content: flex-start;
   }
   .results-section-group {
     gap: 1rem;
