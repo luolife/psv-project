@@ -27,15 +27,28 @@ MIGRATIONS = [
     ),
 ]
 
+# Colunas presentes em bancos antigos que precisam ter seu tamanho ampliado.
+# O SQLite nao aplica limites de VARCHAR; a alteracao e necessaria no PostgreSQL.
+COLUMN_EXPANSIONS = [
+    ("participants", "diagnosis_cid", "VARCHAR(500)", 500),
+]
+
 
 def run(target_engine=engine, verbose: bool = True) -> None:
-    """Adiciona apenas as colunas ausentes no banco informado."""
+    """Atualiza de forma idempotente bancos antigos para o esquema atual."""
     with target_engine.begin() as conn:
         inspector = inspect(conn)
         tables = set(inspector.get_table_names())
-        columns_by_table = {
-            table: {column["name"] for column in inspector.get_columns(table)}
+        column_details_by_table = {
+            table: {
+                column["name"]: column
+                for column in inspector.get_columns(table)
+            }
             for table in tables
+        }
+        columns_by_table = {
+            table: set(columns)
+            for table, columns in column_details_by_table.items()
         }
 
         for table, column, column_type in MIGRATIONS:
@@ -57,6 +70,33 @@ def run(target_engine=engine, verbose: bool = True) -> None:
             columns_by_table[table].add(column)
             if verbose:
                 print("    OK")
+
+        if conn.dialect.name == "postgresql":
+            for table, column, column_type, minimum_length in COLUMN_EXPANSIONS:
+                if table not in tables or column not in columns_by_table[table]:
+                    continue
+
+                current_type = column_details_by_table[table][column]["type"]
+                current_length = getattr(current_type, "length", None)
+                if current_length is None or current_length >= minimum_length:
+                    if verbose:
+                        print(
+                            f"  OK {table}.{column} - tamanho atual suficiente"
+                        )
+                    continue
+
+                if verbose:
+                    print(
+                        f"  ~ {table}.{column} - ampliando para {column_type}..."
+                    )
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ALTER COLUMN {column} "
+                        f"TYPE {column_type}"
+                    )
+                )
+                if verbose:
+                    print("    OK")
 
     if verbose:
         print("\nMigracao concluida.")

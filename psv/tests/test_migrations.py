@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, inspect, text
 
-from migrate import run
+from migrate import COLUMN_EXPANSIONS, run
 
 
 def test_legacy_schema_receives_all_current_columns():
@@ -47,3 +47,12 @@ def test_legacy_schema_receives_all_current_columns():
             text("SELECT report_data_status FROM sessions WHERE id = 'session-1'")
         ).scalar_one()
     assert status == "not_generated"
+
+
+def test_participant_diagnosis_column_is_expanded_in_postgresql():
+    assert (
+        "participants",
+        "diagnosis_cid",
+        "VARCHAR(500)",
+        500,
+    ) in COLUMN_EXPANSIONS
